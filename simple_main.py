@@ -123,6 +123,28 @@ async def logout():
     """Demo logout endpoint"""
     return {"message": "Logged out successfully"}
 
+# Events endpoints
+@app.get("/api/events/stats")
+async def get_events_stats():
+    """Demo events stats endpoint"""
+    return {
+        "total_events": 150,
+        "active_events": 25,
+        "completed_events": 125,
+        "total_participants": 1250,
+        "recent_events": []
+    }
+
+@app.get("/api/events")
+async def get_events():
+    """Demo events list endpoint"""
+    return {
+        "events": [],
+        "total": 0,
+        "page": 1,
+        "limit": 10
+    }
+
 # Basic payment endpoint for testing
 @app.post("/api/payments/mpesa/initiate")
 async def initiate_payment(payment: PaymentRequest):
