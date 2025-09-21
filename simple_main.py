@@ -50,31 +50,64 @@ async def health_check():
 # Basic auth endpoint for testing
 @app.post("/api/auth/login")
 async def login(credentials: dict):
-    """Demo login endpoint that matches frontend expectations"""
+    """Login endpoint with database authentication"""
     from datetime import datetime
     import hashlib
+    import sqlite3
     
-    # Generate demo tokens in the expected format
-    timestamp = int(datetime.now().timestamp())
-    user_id = "demo_user"
+    email = credentials.get("email")
+    password = credentials.get("password")
     
-    # Create tokens in the format the frontend expects
-    access_token = f"access_{user_id}_{timestamp}_{hashlib.md5(f'access_{user_id}_{timestamp}'.encode()).hexdigest()[:8]}"
-    refresh_token = f"refresh_{user_id}_{timestamp}_{hashlib.md5(f'refresh_{user_id}_{timestamp}'.encode()).hexdigest()[:8]}"
+    if not email or not password:
+        raise HTTPException(status_code=400, detail="Email and password are required")
     
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "user": {
-            "id": 1,
-            "email": credentials.get("email", "demo@climatewitness.com"),
-            "full_name": "Demo User",
-            "role": "user",
-            "is_active": True,
-            "is_verified": True
-        },
-        "message": "Login successful"
-    }
+    try:
+        conn = sqlite3.connect('./climate_witness.db')
+        cursor = conn.cursor()
+        
+        # Get user by email
+        cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+        user_row = cursor.fetchone()
+        
+        if not user_row:
+            conn.close()
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        
+        # Get column names
+        columns = [description[0] for description in cursor.description]
+        user = dict(zip(columns, user_row))
+        
+        # Update last login
+        cursor.execute("UPDATE users SET last_login = ? WHERE email = ?", 
+                      (datetime.now().isoformat(), email))
+        conn.commit()
+        conn.close()
+        
+        # Generate tokens
+        timestamp = int(datetime.now().timestamp())
+        user_id = user['id']
+        
+        access_token = f"access_{user_id}_{timestamp}_{hashlib.md5(f'access_{user_id}_{timestamp}'.encode()).hexdigest()[:8]}"
+        refresh_token = f"refresh_{user_id}_{timestamp}_{hashlib.md5(f'refresh_{user_id}_{timestamp}'.encode()).hexdigest()[:8]}"
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "user": {
+                "id": user['id'],
+                "email": user['email'],
+                "full_name": f"{user.get('first_name', '')} {user.get('last_name', '')}".strip(),
+                "role": user.get('role', 'user'),
+                "is_active": True,
+                "is_verified": True
+            },
+            "message": "Login successful"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 # Request models
 class LoginRequest(BaseModel):
@@ -106,44 +139,77 @@ async def refresh_token(request: dict):
 
 @app.get("/api/auth/me")
 async def get_current_user():
-    """Demo current user endpoint"""
-    return {
-        "user": {
-            "id": 1,
-            "email": "demo@climatewitness.com",
-            "full_name": "Demo User",
-            "role": "user",
-            "is_active": True,
-            "is_verified": True
-        }
-    }
+    """Get current user - requires proper authentication"""
+    # This should only be called if user has valid token
+    # For now, return error to force proper login flow
+    raise HTTPException(status_code=401, detail="Authentication required")
 
 @app.post("/api/auth/register")
 async def register(user_data: dict):
-    """Demo registration endpoint"""
+    """Registration endpoint with email uniqueness check"""
     from datetime import datetime
     import hashlib
+    import sqlite3
     
-    # Generate demo tokens for new user
-    timestamp = int(datetime.now().timestamp())
-    user_id = f"user_{timestamp}"
+    email = user_data.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
     
-    access_token = f"access_{user_id}_{timestamp}_{hashlib.md5(f'access_{user_id}_{timestamp}'.encode()).hexdigest()[:8]}"
-    refresh_token = f"refresh_{user_id}_{timestamp}_{hashlib.md5(f'refresh_{user_id}_{timestamp}'.encode()).hexdigest()[:8]}"
-    
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "user": {
-            "id": timestamp,
-            "email": user_data.get("email", "newuser@climatewitness.com"),
-            "full_name": f"{user_data.get('first_name', 'New')} {user_data.get('last_name', 'User')}",
-            "role": user_data.get("role", "user"),
-            "is_active": True,
-            "is_verified": True
-        },
-        "message": "Registration successful"
-    }
+    # Check if email already exists
+    try:
+        conn = sqlite3.connect('./climate_witness.db')
+        cursor = conn.cursor()
+        
+        # Check for existing email
+        cursor.execute("SELECT email FROM users WHERE email = ?", (email,))
+        existing_user = cursor.fetchone()
+        
+        if existing_user:
+            conn.close()
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        # Create new user
+        timestamp = int(datetime.now().timestamp())
+        user_id = f"user_{timestamp}"
+        
+        # Insert into database
+        cursor.execute("""
+            INSERT INTO users (id, email, first_name, last_name, role, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            user_id,
+            email,
+            user_data.get('firstName', user_data.get('first_name', 'New')),
+            user_data.get('lastName', user_data.get('last_name', 'User')),
+            user_data.get('role', 'user'),
+            datetime.now().isoformat()
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        # Generate tokens
+        access_token = f"access_{user_id}_{timestamp}_{hashlib.md5(f'access_{user_id}_{timestamp}'.encode()).hexdigest()[:8]}"
+        refresh_token = f"refresh_{user_id}_{timestamp}_{hashlib.md5(f'refresh_{user_id}_{timestamp}'.encode()).hexdigest()[:8]}"
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "user": {
+                "id": user_id,
+                "email": email,
+                "full_name": f"{user_data.get('firstName', user_data.get('first_name', 'New'))} {user_data.get('lastName', user_data.get('last_name', 'User'))}",
+                "role": user_data.get('role', 'user'),
+                "is_active": True,
+                "is_verified": True
+            },
+            "message": "Registration successful"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 @app.post("/api/auth/logout")
 async def logout():
@@ -525,6 +591,36 @@ async def export_research_data():
         },
         "format": "json"
     }
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database tables"""
+    import sqlite3
+    
+    try:
+        conn = sqlite3.connect('./climate_witness.db')
+        cursor = conn.cursor()
+        
+        # Create users table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                first_name TEXT,
+                last_name TEXT,
+                role TEXT DEFAULT 'user',
+                created_at TEXT,
+                last_login TEXT
+            )
+        """)
+        
+        conn.commit()
+        conn.close()
+        print("✅ Database initialized")
+        
+    except Exception as e:
+        print(f"⚠️ Database initialization error: {e}")
 
 if __name__ == "__main__":
     import uvicorn
