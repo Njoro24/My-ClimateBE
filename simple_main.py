@@ -181,6 +181,242 @@ async def initiate_payment(payment: PaymentRequest):
         "checkout_request_id": "demo_checkout_123"
     }
 
+# Researcher Analytics Endpoints
+@app.get("/api/researcher/analytics")
+async def get_research_analytics(
+    time_range: str = "30d",
+    region: str = "all",
+    event_type: str = "all"
+):
+    """Get comprehensive analytics for researchers"""
+    
+    # Mock analytics data
+    analytics = {
+        "total_events": 1247,
+        "verified_events": 1089,
+        "pending_events": 158,
+        "active_reporters": 342,
+        "metta_accuracy": 94.7,
+        "verification_rate": 87.3,
+        "regional_distribution": {
+            "Africa": 456,
+            "Asia": 321,
+            "Europe": 189,
+            "North America": 156,
+            "South America": 89,
+            "Oceania": 36
+        },
+        "event_type_distribution": {
+            "Drought": 387,
+            "Flood": 298,
+            "Extreme Heat": 234,
+            "Locust Swarm": 189,
+            "Wildfire": 139
+        },
+        "temporal_trends": [
+            {"month": "Jan", "events": 89, "verified": 78, "accuracy": 92.1},
+            {"month": "Feb", "events": 94, "verified": 85, "accuracy": 93.4},
+            {"month": "Mar", "events": 112, "verified": 98, "accuracy": 94.2},
+            {"month": "Apr", "events": 108, "verified": 96, "accuracy": 95.1},
+            {"month": "May", "events": 125, "verified": 118, "accuracy": 94.7}
+        ]
+    }
+    
+    # Apply filters
+    if time_range == "7d":
+        analytics["total_events"] = int(analytics["total_events"] * 0.1)
+        analytics["verified_events"] = int(analytics["verified_events"] * 0.1)
+    elif time_range == "30d":
+        analytics["total_events"] = int(analytics["total_events"] * 0.3)
+        analytics["verified_events"] = int(analytics["verified_events"] * 0.3)
+    
+    analytics["pending_events"] = analytics["total_events"] - analytics["verified_events"]
+    analytics["verification_rate"] = (analytics["verified_events"] / max(analytics["total_events"], 1)) * 100
+    
+    return analytics
+
+@app.get("/api/researcher/projects")
+async def get_research_projects():
+    """Get researcher's projects"""
+    
+    projects = [
+        {
+            "id": 1,
+            "title": "East Africa Drought Patterns Analysis",
+            "description": "Comprehensive study of drought patterns in East Africa using community-reported data",
+            "status": "active",
+            "created_at": "2024-01-15T10:00:00Z",
+            "researcher_id": 1,
+            "data_sources": ["community_reports", "satellite_data", "weather_stations"],
+            "analysis_methods": ["metta_ai", "statistical_analysis", "geospatial_mapping"]
+        },
+        {
+            "id": 2,
+            "title": "Flood Prediction Model Development",
+            "description": "Machine learning model for flood prediction using historical community reports",
+            "status": "in_progress",
+            "created_at": "2024-02-01T14:30:00Z",
+            "researcher_id": 1,
+            "data_sources": ["community_reports", "rainfall_data"],
+            "analysis_methods": ["machine_learning", "metta_ai", "predictive_modeling"]
+        }
+    ]
+    
+    return {
+        "projects": projects,
+        "total": len(projects)
+    }
+
+@app.get("/api/researcher/insights")
+async def get_research_insights():
+    """Get AI-generated research insights"""
+    
+    insights = [
+        {
+            "id": 1,
+            "type": "trend_analysis",
+            "title": "Increasing Drought Frequency in East Africa",
+            "description": "MeTTa analysis shows 23% increase in drought reports over the last 6 months",
+            "confidence": 0.92,
+            "impact": "high",
+            "recommendations": [
+                "Increase monitoring in affected regions",
+                "Deploy early warning systems",
+                "Coordinate with local agricultural authorities"
+            ],
+            "generated_at": "2024-01-20T10:00:00Z"
+        },
+        {
+            "id": 2,
+            "type": "correlation_discovery",
+            "title": "Locust Swarm Patterns Correlate with Rainfall",
+            "description": "Strong correlation (r=0.84) between rainfall patterns and locust swarm reports",
+            "confidence": 0.89,
+            "impact": "medium",
+            "recommendations": [
+                "Integrate rainfall data into locust prediction models",
+                "Develop combined monitoring protocols"
+            ],
+            "generated_at": "2024-01-18T15:30:00Z"
+        }
+    ]
+    
+    return {
+        "insights": insights,
+        "total": len(insights),
+        "last_updated": "2024-01-20T10:00:00Z"
+    }
+
+@app.get("/api/researcher/verification-queue")
+async def get_verification_queue():
+    """Get events pending verification by researchers"""
+    
+    queue_items = [
+        {
+            "id": 1,
+            "event_id": 156,
+            "type": "drought",
+            "location": "Turkana County, Kenya",
+            "reported_by": "Community Reporter #342",
+            "reported_at": "2024-01-20T08:30:00Z",
+            "priority": "high",
+            "metta_confidence": 0.87,
+            "supporting_evidence": ["photo", "weather_data"],
+            "similar_reports": 3
+        },
+        {
+            "id": 2,
+            "event_id": 157,
+            "type": "locust_swarm",
+            "location": "Samburu County, Kenya",
+            "reported_by": "Agricultural Officer",
+            "reported_at": "2024-01-20T11:15:00Z",
+            "priority": "high",
+            "metta_confidence": 0.92,
+            "supporting_evidence": ["photo", "video", "gps_data"],
+            "similar_reports": 1
+        }
+    ]
+    
+    return {
+        "queue": queue_items,
+        "total": len(queue_items),
+        "summary": {
+            "high_priority": 2,
+            "medium_priority": 5,
+            "low_priority": 8
+        }
+    }
+
+@app.get("/api/researcher/data-export")
+async def export_research_data(
+    export_type: str = "events",
+    format: str = "json"
+):
+    """Export research data in various formats"""
+    
+    from datetime import datetime
+    
+    export_data = {}
+    
+    if export_type == "events":
+        export_data = {
+            "events": [
+                {
+                    "id": 1,
+                    "type": "drought",
+                    "location": {"lat": -1.2921, "lng": 36.8219, "name": "Nairobi, Kenya"},
+                    "severity": "moderate",
+                    "verified": True,
+                    "reported_at": "2024-01-15T10:00:00Z",
+                    "metta_confidence": 0.94
+                },
+                {
+                    "id": 2,
+                    "type": "flood",
+                    "location": {"lat": -4.0383, "lng": 39.6682, "name": "Mombasa, Kenya"},
+                    "severity": "severe",
+                    "verified": True,
+                    "reported_at": "2024-01-20T14:30:00Z",
+                    "metta_confidence": 0.89
+                }
+            ],
+            "metadata": {
+                "total_records": 2,
+                "export_date": datetime.utcnow().isoformat(),
+                "filters": {"export_type": export_type, "format": format}
+            }
+        }
+    elif export_type == "analytics":
+        export_data = {
+            "total_events": 1247,
+            "verified_events": 1089,
+            "verification_rate": 87.3,
+            "metta_accuracy": 94.7
+        }
+    
+    return {
+        "success": True,
+        "data": export_data,
+        "format": format,
+        "download_url": f"/api/researcher/download/{export_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{format}"
+    }
+
+@app.post("/api/researcher/verify-event/{event_id}")
+async def verify_event(event_id: int, verification_data: dict):
+    """Verify an event as a researcher"""
+    
+    from datetime import datetime
+    
+    return {
+        "success": True,
+        "event_id": event_id,
+        "verification_status": verification_data.get("status", "verified"),
+        "researcher_notes": verification_data.get("notes", ""),
+        "confidence_score": verification_data.get("confidence", 0.95),
+        "verified_at": datetime.utcnow().isoformat()
+    }
+
 # Researcher endpoints for analytics
 @app.get("/api/researcher/analytics")
 async def get_research_analytics():

@@ -89,8 +89,8 @@ def main():
     time.sleep(2)
     
     # Start the server with Railway-optimized settings
-    # Use main.py for full functionality
-    app_module = 'main:app'
+    # Use simple_main for reliable deployment
+    app_module = 'simple_main:app'
     
     print(f"🚀 Starting app module: {app_module}")
     
