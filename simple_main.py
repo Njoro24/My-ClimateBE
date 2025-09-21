@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
+import json
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -238,13 +239,97 @@ async def get_events():
         "limit": 10
     }
 
-# Basic payment endpoint for testing
+# M-Pesa payment endpoints
 @app.post("/api/payments/mpesa/initiate")
 async def initiate_payment(payment: PaymentRequest):
+    """Initiate M-Pesa STK Push payment"""
+    try:
+        # Import M-Pesa service
+        from app.services.mpesa_service import mpesa_service
+        
+        # Validate phone number
+        if not mpesa_service.validate_phone_number(payment.phone):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid phone number. Please use Kenyan format (e.g., 0712345678 or 254712345678)"
+            )
+        
+        # Validate amount
+        if not mpesa_service.validate_amount(payment.amount):
+            raise HTTPException(
+                status_code=400,
+                detail="Amount must be between 1 and 70,000 KES"
+            )
+        
+        # Initiate STK push
+        result = mpesa_service.initiate_stk_push(
+            phone=payment.phone,
+            amount=payment.amount,
+            account_reference=payment.reference or "Climate Witness Chain",
+            transaction_desc=f"Climate Witness Chain - {payment.reference or 'Donation'}"
+        )
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Payment initiation failed: {str(e)}")
+
+@app.get("/api/payments/mpesa/status/{checkout_request_id}")
+async def check_payment_status(checkout_request_id: str):
+    """Check M-Pesa payment status"""
+    try:
+        from app.services.mpesa_service import mpesa_service
+        
+        result = mpesa_service.query_transaction_status(checkout_request_id)
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Status check failed: {str(e)}")
+
+@app.post("/api/payments/mpesa/callback")
+async def mpesa_callback(callback_data: dict):
+    """Handle M-Pesa payment callback"""
+    try:
+        from app.services.mpesa_service import mpesa_service
+        
+        # Process callback
+        result = mpesa_service.process_callback(callback_data)
+        
+        # Log the callback for debugging
+        print(f"M-Pesa Callback: {json.dumps(callback_data, indent=2)}")
+        print(f"Processed Result: {json.dumps(result, indent=2)}")
+        
+        # Here you can add database operations to store payment records
+        # For example:
+        # - Update payment status in database
+        # - Send confirmation email/SMS
+        # - Update user account balance
+        # - Trigger any post-payment actions
+        
+        return {
+            "ResultCode": 0,
+            "ResultDesc": "Callback processed successfully"
+        }
+        
+    except Exception as e:
+        print(f"Callback processing error: {str(e)}")
+        return {
+            "ResultCode": 1,
+            "ResultDesc": f"Callback processing failed: {str(e)}"
+        }
+
+@app.get("/api/payments/health")
+async def payment_health():
+    """Check payment service health"""
+    from app.services.mpesa_service import mpesa_service
+    
     return {
-        "success": True,
-        "message": "Demo payment initiated",
-        "checkout_request_id": "demo_checkout_123"
+        "status": "healthy",
+        "mpesa_configured": mpesa_service.is_configured,
+        "environment": mpesa_service.environment if mpesa_service.is_configured else "demo",
+        "message": "M-Pesa service ready" if mpesa_service.is_configured else "M-Pesa in demo mode - configure credentials for real payments"
     }
 
 # Researcher Analytics Endpoints
