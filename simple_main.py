@@ -118,6 +118,33 @@ async def get_current_user():
         }
     }
 
+@app.post("/api/auth/register")
+async def register(user_data: dict):
+    """Demo registration endpoint"""
+    from datetime import datetime
+    import hashlib
+    
+    # Generate demo tokens for new user
+    timestamp = int(datetime.now().timestamp())
+    user_id = f"user_{timestamp}"
+    
+    access_token = f"access_{user_id}_{timestamp}_{hashlib.md5(f'access_{user_id}_{timestamp}'.encode()).hexdigest()[:8]}"
+    refresh_token = f"refresh_{user_id}_{timestamp}_{hashlib.md5(f'refresh_{user_id}_{timestamp}'.encode()).hexdigest()[:8]}"
+    
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "user": {
+            "id": timestamp,
+            "email": user_data.get("email", "newuser@climatewitness.com"),
+            "full_name": f"{user_data.get('first_name', 'New')} {user_data.get('last_name', 'User')}",
+            "role": user_data.get("role", "user"),
+            "is_active": True,
+            "is_verified": True
+        },
+        "message": "Registration successful"
+    }
+
 @app.post("/api/auth/logout")
 async def logout():
     """Demo logout endpoint"""
