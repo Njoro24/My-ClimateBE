@@ -102,6 +102,13 @@ class MpesaService:
         if not self.is_configured:
             return self._demo_response(phone, amount, account_reference)
         
+        # Check if requests module is available
+        try:
+            import requests
+        except ImportError:
+            logger.warning("Requests module not available, using demo mode")
+            return self._demo_response(phone, amount, account_reference)
+        
         try:
             # Get access token
             access_token = self.get_access_token()
