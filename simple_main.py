@@ -20,7 +20,7 @@ app = FastAPI(
 )
 
 # CORS configuration
-cors_origins = os.getenv('CORS_ORIGINS', '*').split(',')
+cors_origins = os.getenv('CORS_ORIGINS', 'https://my-climate-six.vercel.app,http://localhost:3000,http://localhost:5173,*').split(',')
 
 app.add_middleware(
     CORSMiddleware,
