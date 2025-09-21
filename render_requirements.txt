@@ -1,41 +1,11 @@
-# Climate Witness Chain - Render Deployment Requirements
-# Core FastAPI and server
+# Climate Witness Chain - Minimal Render Requirements
 fastapi==0.104.1
-uvicorn[standard]==0.24.0
-
-# Database
+uvicorn==0.24.0
 sqlalchemy==2.0.23
 aiosqlite==0.19.0
-
-# Authentication and Security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.1.2
-
-# Environment and Configuration
 python-dotenv==1.0.1
 pydantic==2.5.0
-
-# HTTP and API
-httpx==0.25.2
 python-multipart==0.0.6
-
-# Image processing
-pillow==10.1.0
-
-# Blockchain (optional)
-web3==6.11.3
-
-# Optional dependencies (will fallback gracefully if not available)
-# hyperon==0.1.12  # Commented out - may cause issues on Render
-# twilio==8.10.0   # Commented out - add if needed
-# pyotp==2.9.0     # Commented out - add if needed
-# ipfshttpclient==0.8.0a2  # Commented out - may cause issues
-
-# Redis and Celery (optional)
-redis==4.6.0
-celery==5.3.4
-aioredis==2.0.1
-
-# Build tools
-setuptools==69.0.0
