@@ -4,7 +4,16 @@ from datetime import datetime
 import uuid
 import json
 
-async def create_tables(db_path: str = "./climate_witness.db"):
+async def create_tables(db_path: str = None):
+    """Create all database tables"""
+    if db_path is None:
+        db_path = os.getenv('DATABASE_URL', './climate_witness.db')
+        # Handle SQLite URL format
+        if db_path.startswith('sqlite:///'):
+            db_path = db_path.replace('sqlite:///', '')
+    
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else '.', exist_ok=True)
     """Create all database tables"""
     async with aiosqlite.connect(db_path) as db:
         # Create users table with authentication fields
