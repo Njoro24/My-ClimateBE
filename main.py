@@ -80,7 +80,7 @@ class PaymentResponse(BaseModel):
     message: str
     checkout_request_id: str = None
 
-from app.api.routes import events, metta, users, auth, community_verification, economic_impact, insurance, dao_governance, alerts, ai_metta, plant_recommendations, contact, admin, payments
+from app.api.routes import events, metta, users, auth, community_verification, economic_impact, insurance, dao_governance, alerts, ai_metta, plant_recommendations, contact, admin, payments, researcher
 
 try:
     from app.api.routes import blockchain
@@ -118,6 +118,7 @@ app.include_router(plant_recommendations.router, prefix="/api/plants", tags=["pl
 app.include_router(contact.router, prefix="/api/contact", tags=["contact"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
+app.include_router(researcher.router, prefix="/api/researcher", tags=["researcher"])
 
 if BLOCKCHAIN_AVAILABLE:
     app.include_router(blockchain.router, prefix="/api/blockchain", tags=["blockchain"])

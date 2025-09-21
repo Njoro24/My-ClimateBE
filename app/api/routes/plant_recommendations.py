@@ -71,7 +71,7 @@ KENYAN_PLANTS_DATABASE = [
             "soilPH": "6.0-7.5",
             "soilType": "Well-drained loamy soil"
         },
-        "image": "https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=300&h=200&fit=crop",
+        "image": "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=300&h=200&fit=crop&q=80",
         "aiInsights": "Based on current climate patterns, maize shows excellent adaptation potential in your region. Consider drought-resistant varieties for better yields.",
         "category": "Cereal",
         "difficulty": "Easy"
@@ -96,7 +96,7 @@ KENYAN_PLANTS_DATABASE = [
             "soilPH": "6.0-8.5",
             "soilType": "Sandy loam to clay loam"
         },
-        "image": "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=300&h=200&fit=crop",
+        "image": "https://images.unsplash.com/photo-1595854341625-f33ee10dbf94?w=300&h=200&fit=crop&q=80",
         "aiInsights": "Highly recommended for climate resilience. Sorghum thrives in semi-arid conditions and requires minimal water.",
         "category": "Cereal",
         "difficulty": "Easy"
@@ -121,7 +121,7 @@ KENYAN_PLANTS_DATABASE = [
             "soilPH": "5.5-7.0",
             "soilType": "Well-drained sandy loam"
         },
-        "image": "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=300&h=200&fit=crop",
+        "image": "https://images.unsplash.com/photo-1509358271058-acd22cc93898?w=300&h=200&fit=crop&q=80",
         "aiInsights": "Perfect for food security. Orange varieties provide essential nutrients for children and improve soil health.",
         "category": "Root Vegetable",
         "difficulty": "Easy"
@@ -146,7 +146,7 @@ KENYAN_PLANTS_DATABASE = [
             "soilPH": "5.5-7.0",
             "soilType": "Well-drained sandy soil"
         },
-        "image": "https://images.unsplash.com/photo-1609501676725-7186f0b4c4b8?w=300&h=200&fit=crop",
+        "image": "https://images.unsplash.com/photo-1582284540020-8acbe03f4924?w=300&h=200&fit=crop&q=80",
         "aiInsights": "Excellent choice for food security. Cassava can survive harsh conditions and provides reliable yields even in poor soils.",
         "category": "Root Vegetable",
         "difficulty": "Easy"
