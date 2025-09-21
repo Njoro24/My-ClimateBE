@@ -1,22 +1,14 @@
-#!/usr/bin/env python3
-"""
-Start the FastAPI server
-"""
-
+import os
 import uvicorn
 from main import app
 
 if __name__ == "__main__":
-    print(" Starting Climate Witness Chain API server...")
-    print(" Server will be available at: http://localhost:8000")
-    print(" API documentation at: http://localhost:8000/docs")
-    print(" Auto-reload enabled for development")
-    print()
+    port = int(os.environ.get("PORT", 8000))
     
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
-        reload=True,
+        port=port,
+        reload=False,  # Disable reload in production
         log_level="info"
     )
