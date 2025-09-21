@@ -18,45 +18,30 @@ async def initialize_database():
     try:
         print("🔧 Initializing database for Railway...")
         
-        # Simple database initialization - create basic tables
-        import sqlite3
+        # Use proper database migrations
+        from app.database.migrations import create_tables, insert_sample_data
+        
+        # Get database path
         db_path = os.getenv('DATABASE_URL', './climate_witness.db')
         if db_path.startswith('sqlite:///'):
             db_path = db_path.replace('sqlite:///', '')
         
-        # Create basic tables if they don't exist
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+        # Create tables using proper migrations
+        await create_tables(db_path)
+        print("✅ Database tables created")
         
-        # Create users table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                full_name TEXT,
-                phone TEXT,
-                is_active BOOLEAN DEFAULT 1,
-                is_verified BOOLEAN DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # Create a basic admin user if none exists
-        cursor.execute("SELECT COUNT(*) FROM users")
-        count = cursor.fetchone()[0]
-        
-        if count == 0:
-            print("🔧 Creating admin user...")
-            # Simple password hash for demo (in production, use proper hashing)
-            cursor.execute('''
-                INSERT INTO users (email, password_hash, full_name, is_active, is_verified)
-                VALUES (?, ?, ?, ?, ?)
-            ''', ('admin@climatewitness.com', 'admin123', 'Admin User', 1, 1))
-            
-        conn.commit()
-        conn.close()
-        print("✅ Database initialized successfully")
+        # Check if we need sample data
+        import aiosqlite
+        async with aiosqlite.connect(db_path) as db:
+            async with db.execute("SELECT COUNT(*) FROM users") as cursor:
+                count = (await cursor.fetchone())[0]
+                
+            if count == 0:
+                print("🔧 Creating sample data...")
+                await insert_sample_data(db_path)
+                print("✅ Sample data created")
+            else:
+                print(f"✅ Database ready with {count} users")
                 
     except Exception as e:
         print(f"⚠️ Database initialization warning: {e}")
@@ -104,8 +89,8 @@ def main():
     time.sleep(2)
     
     # Start the server with Railway-optimized settings
-    # Force use of full main.py for complete functionality
-    app_module = 'main:app'  # Always use main:app for full features
+    # Use main.py for full functionality
+    app_module = 'main:app'
     
     print(f"🚀 Starting app module: {app_module}")
     

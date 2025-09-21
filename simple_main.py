@@ -181,6 +181,115 @@ async def initiate_payment(payment: PaymentRequest):
         "checkout_request_id": "demo_checkout_123"
     }
 
+# Researcher endpoints for analytics
+@app.get("/api/researcher/analytics")
+async def get_research_analytics():
+    """Demo analytics endpoint for researchers"""
+    return {
+        "total_events": 1247,
+        "verified_events": 1089,
+        "pending_events": 158,
+        "active_reporters": 342,
+        "metta_accuracy": 94.7,
+        "verification_rate": 87.3,
+        "regional_distribution": {
+            "Africa": 456,
+            "Asia": 321,
+            "Europe": 189,
+            "North America": 156,
+            "South America": 89,
+            "Oceania": 36
+        },
+        "event_type_distribution": {
+            "Drought": 387,
+            "Flood": 298,
+            "Extreme Heat": 234,
+            "Locust Swarm": 189,
+            "Wildfire": 139
+        }
+    }
+
+@app.get("/api/researcher/projects")
+async def get_research_projects():
+    """Demo projects endpoint"""
+    return {
+        "projects": [
+            {
+                "id": 1,
+                "title": "East Africa Drought Patterns Analysis",
+                "description": "Comprehensive study of drought patterns in East Africa using community-reported data",
+                "status": "active",
+                "created_at": "2024-01-15T10:00:00Z"
+            },
+            {
+                "id": 2,
+                "title": "Flood Prediction Model Development", 
+                "description": "Machine learning model for flood prediction using historical community reports",
+                "status": "in_progress",
+                "created_at": "2024-02-01T14:30:00Z"
+            }
+        ],
+        "total": 2
+    }
+
+@app.get("/api/researcher/insights")
+async def get_research_insights():
+    """Demo insights endpoint"""
+    return {
+        "insights": [
+            {
+                "id": 1,
+                "type": "trend_analysis",
+                "title": "Increasing Drought Frequency in East Africa",
+                "description": "MeTTa analysis shows 23% increase in drought reports over the last 6 months",
+                "confidence": 0.92,
+                "impact": "high",
+                "recommendations": [
+                    "Increase monitoring in affected regions",
+                    "Deploy early warning systems",
+                    "Coordinate with local agricultural authorities"
+                ]
+            }
+        ]
+    }
+
+@app.get("/api/researcher/verification-queue")
+async def get_verification_queue():
+    """Demo verification queue endpoint"""
+    return {
+        "queue": [
+            {
+                "id": 1,
+                "event_id": 156,
+                "type": "drought",
+                "location": "Turkana County, Kenya",
+                "reported_by": "Community Reporter #342",
+                "priority": "high",
+                "metta_confidence": 0.87,
+                "similar_reports": 3
+            }
+        ]
+    }
+
+@app.get("/api/researcher/data-export")
+async def export_research_data():
+    """Demo data export endpoint"""
+    return {
+        "success": True,
+        "data": {
+            "events": [
+                {
+                    "id": 1,
+                    "type": "drought",
+                    "location": {"lat": -1.2921, "lng": 36.8219, "name": "Nairobi, Kenya"},
+                    "severity": "moderate",
+                    "verified": True
+                }
+            ]
+        },
+        "format": "json"
+    }
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv('PORT', 8000))

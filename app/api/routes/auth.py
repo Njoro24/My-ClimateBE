@@ -248,6 +248,7 @@ async def register_user(
         await db.commit()
         
         # Get the created user
+        db.row_factory = aiosqlite.Row
         async with db.execute("SELECT * FROM users WHERE id = ?", (user_id,)) as cursor:
             user = await cursor.fetchone()
         
@@ -277,6 +278,7 @@ async def login_user(
     """Login user with JWT tokens"""
     try:
         # Get user by email
+        db.row_factory = aiosqlite.Row
         async with db.execute("SELECT * FROM users WHERE email = ?", (user_data.email,)) as cursor:
             user = await cursor.fetchone()
             if not user:
@@ -299,14 +301,6 @@ async def login_user(
             (datetime.now().isoformat(), user["id"])
         )
         await db.commit()
-        
-        # Log login event
-        try:
-            from app.services.event_service import EventService
-            event_service = EventService()
-            await event_service.log_user_login(user["id"], "unknown")
-        except Exception as e:
-            print(f"Warning: Failed to log login event: {e}")
         
         # Create tokens
         access_token = create_access_token(data={"sub": user["id"]})
