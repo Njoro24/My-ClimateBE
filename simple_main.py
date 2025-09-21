@@ -3,8 +3,9 @@
 Simplified main.py for Railway deployment
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
 
@@ -48,16 +49,83 @@ async def health_check():
 
 # Basic auth endpoint for testing
 @app.post("/api/auth/login")
-async def login():
+async def login(credentials: dict):
+    """Demo login endpoint that matches frontend expectations"""
+    from datetime import datetime
+    import hashlib
+    
+    # Generate demo tokens in the expected format
+    timestamp = int(datetime.now().timestamp())
+    user_id = "demo_user"
+    
+    # Create tokens in the format the frontend expects
+    access_token = f"access_{user_id}_{timestamp}_{hashlib.md5(f'access_{user_id}_{timestamp}'.encode()).hexdigest()[:8]}"
+    refresh_token = f"refresh_{user_id}_{timestamp}_{hashlib.md5(f'refresh_{user_id}_{timestamp}'.encode()).hexdigest()[:8]}"
+    
     return {
-        "success": True,
-        "message": "Demo login successful",
-        "token": "demo_token_123"
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "user": {
+            "id": 1,
+            "email": credentials.get("email", "demo@climatewitness.com"),
+            "full_name": "Demo User",
+            "role": "user",
+            "is_active": True,
+            "is_verified": True
+        },
+        "message": "Login successful"
     }
+
+# Request models
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class PaymentRequest(BaseModel):
+    phone: str
+    amount: float
+    reference: str = "demo"
+
+# Auth endpoints
+@app.post("/api/auth/refresh")
+async def refresh_token(request: dict):
+    """Demo refresh token endpoint"""
+    from datetime import datetime
+    import hashlib
+    
+    timestamp = int(datetime.now().timestamp())
+    user_id = "demo_user"
+    
+    access_token = f"access_{user_id}_{timestamp}_{hashlib.md5(f'access_{user_id}_{timestamp}'.encode()).hexdigest()[:8]}"
+    refresh_token = f"refresh_{user_id}_{timestamp}_{hashlib.md5(f'refresh_{user_id}_{timestamp}'.encode()).hexdigest()[:8]}"
+    
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token
+    }
+
+@app.get("/api/auth/me")
+async def get_current_user():
+    """Demo current user endpoint"""
+    return {
+        "user": {
+            "id": 1,
+            "email": "demo@climatewitness.com",
+            "full_name": "Demo User",
+            "role": "user",
+            "is_active": True,
+            "is_verified": True
+        }
+    }
+
+@app.post("/api/auth/logout")
+async def logout():
+    """Demo logout endpoint"""
+    return {"message": "Logged out successfully"}
 
 # Basic payment endpoint for testing
 @app.post("/api/payments/mpesa/initiate")
-async def initiate_payment():
+async def initiate_payment(payment: PaymentRequest):
     return {
         "success": True,
         "message": "Demo payment initiated",
