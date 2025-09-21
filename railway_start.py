@@ -104,8 +104,8 @@ def main():
     time.sleep(2)
     
     # Start the server with Railway-optimized settings
-    # Use full main.py for complete functionality
-    app_module = os.getenv('APP_MODULE', 'main:app')
+    # Force use of full main.py for complete functionality
+    app_module = 'main:app'  # Always use main:app for full features
     
     print(f"🚀 Starting app module: {app_module}")
     
