@@ -3,7 +3,7 @@ M-Pesa Integration Service for Climate Witness Chain
 Handles STK Push, payment callbacks, and transaction queries
 """
 
-import requests
+import httpx
 import base64
 import json
 from datetime import datetime
@@ -45,7 +45,7 @@ class MpesaService:
         if not self.is_configured:
             logger.warning("M-Pesa credentials not fully configured. Using demo mode.")
 
-    def get_access_token(self) -> Optional[str]:
+    async def get_access_token(self) -> Optional[str]:
         """Get OAuth access token from M-Pesa API"""
         if not self.is_configured:
             return None
@@ -60,14 +60,15 @@ class MpesaService:
                 'Content-Type': 'application/json'
             }
             
-            response = requests.get(self.auth_url, headers=headers, timeout=30)
-            
-            if response.status_code == 200:
-                data = response.json()
-                return data.get('access_token')
-            else:
-                logger.error(f"Failed to get access token: {response.status_code} - {response.text}")
-                return None
+            async with httpx.AsyncClient() as client:
+                response = await client.get(self.auth_url, headers=headers, timeout=30)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    return data.get('access_token')
+                else:
+                    logger.error(f"Failed to get access token: {response.status_code} - {response.text}")
+                    return None
                 
         except Exception as e:
             logger.error(f"Error getting access token: {str(e)}")
@@ -95,23 +96,16 @@ class MpesaService:
         else:
             raise ValueError(f"Invalid phone number format: {phone}")
 
-    def initiate_stk_push(self, phone: str, amount: float, account_reference: str, transaction_desc: str = None) -> Dict[str, Any]:
+    async def initiate_stk_push(self, phone: str, amount: float, account_reference: str, transaction_desc: str = None) -> Dict[str, Any]:
         """Initiate STK Push payment"""
         
         # If not configured, return demo response
         if not self.is_configured:
             return self._demo_response(phone, amount, account_reference)
         
-        # Check if requests module is available
-        try:
-            import requests
-        except ImportError:
-            logger.warning("Requests module not available, using demo mode")
-            return self._demo_response(phone, amount, account_reference)
-        
         try:
             # Get access token
-            access_token = self.get_access_token()
+            access_token = await self.get_access_token()
             if not access_token:
                 raise Exception("Failed to get access token")
             
@@ -142,37 +136,38 @@ class MpesaService:
             }
             
             # Make STK push request
-            response = requests.post(self.stk_push_url, json=payload, headers=headers, timeout=30)
-            
-            if response.status_code == 200:
-                data = response.json()
+            async with httpx.AsyncClient() as client:
+                response = await client.post(self.stk_push_url, json=payload, headers=headers, timeout=30)
                 
-                # Check if request was successful
-                if data.get('ResponseCode') == '0':
-                    return {
-                        'success': True,
-                        'message': 'STK push sent successfully',
-                        'checkout_request_id': data.get('CheckoutRequestID'),
-                        'merchant_request_id': data.get('MerchantRequestID'),
-                        'response_code': data.get('ResponseCode'),
-                        'response_description': data.get('ResponseDescription'),
-                        'customer_message': data.get('CustomerMessage')
-                    }
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    # Check if request was successful
+                    if data.get('ResponseCode') == '0':
+                        return {
+                            'success': True,
+                            'message': 'STK push sent successfully',
+                            'checkout_request_id': data.get('CheckoutRequestID'),
+                            'merchant_request_id': data.get('MerchantRequestID'),
+                            'response_code': data.get('ResponseCode'),
+                            'response_description': data.get('ResponseDescription'),
+                            'customer_message': data.get('CustomerMessage')
+                        }
+                    else:
+                        return {
+                            'success': False,
+                            'message': data.get('ResponseDescription', 'STK push failed'),
+                            'response_code': data.get('ResponseCode'),
+                            'error_code': data.get('errorCode'),
+                            'error_message': data.get('errorMessage')
+                        }
                 else:
+                    logger.error(f"STK push failed: {response.status_code} - {response.text}")
                     return {
                         'success': False,
-                        'message': data.get('ResponseDescription', 'STK push failed'),
-                        'response_code': data.get('ResponseCode'),
-                        'error_code': data.get('errorCode'),
-                        'error_message': data.get('errorMessage')
+                        'message': f'Payment request failed: {response.status_code}',
+                        'error': response.text
                     }
-            else:
-                logger.error(f"STK push failed: {response.status_code} - {response.text}")
-                return {
-                    'success': False,
-                    'message': f'Payment request failed: {response.status_code}',
-                    'error': response.text
-                }
                 
         except ValueError as e:
             return {
@@ -188,7 +183,7 @@ class MpesaService:
                 'error_type': 'system_error'
             }
 
-    def query_transaction_status(self, checkout_request_id: str) -> Dict[str, Any]:
+    async def query_transaction_status(self, checkout_request_id: str) -> Dict[str, Any]:
         """Query the status of an STK push transaction"""
         
         if not self.is_configured:
@@ -201,7 +196,7 @@ class MpesaService:
         
         try:
             # Get access token
-            access_token = self.get_access_token()
+            access_token = await self.get_access_token()
             if not access_token:
                 raise Exception("Failed to get access token")
             
@@ -222,24 +217,25 @@ class MpesaService:
             }
             
             # Make query request
-            response = requests.post(self.query_url, json=payload, headers=headers, timeout=30)
-            
-            if response.status_code == 200:
-                data = response.json()
-                return {
-                    'success': True,
-                    'result_code': data.get('ResultCode'),
-                    'result_desc': data.get('ResultDesc'),
-                    'merchant_request_id': data.get('MerchantRequestID'),
-                    'checkout_request_id': data.get('CheckoutRequestID'),
-                    'response_code': data.get('ResponseCode')
-                }
-            else:
-                return {
-                    'success': False,
-                    'message': f'Query failed: {response.status_code}',
-                    'error': response.text
-                }
+            async with httpx.AsyncClient() as client:
+                response = await client.post(self.query_url, json=payload, headers=headers, timeout=30)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    return {
+                        'success': True,
+                        'result_code': data.get('ResultCode'),
+                        'result_desc': data.get('ResultDesc'),
+                        'merchant_request_id': data.get('MerchantRequestID'),
+                        'checkout_request_id': data.get('CheckoutRequestID'),
+                        'response_code': data.get('ResponseCode')
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'message': f'Query failed: {response.status_code}',
+                        'error': response.text
+                    }
                 
         except Exception as e:
             logger.error(f"Transaction query error: {str(e)}")

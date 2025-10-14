@@ -5,7 +5,7 @@ Handles M-Pesa and other payment integrations
 
 import os
 import base64
-import requests
+import httpx
 import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
@@ -21,8 +21,9 @@ class PaymentService:
         self.passkey = os.getenv('MPESA_PASSKEY')
         self.callback_url = os.getenv('MPESA_CALLBACK_URL', 'https://your-domain.com/api/payments/mpesa/callback')
         
-        # Check if M-Pesa credentials are available
-        self.mpesa_available = bool(self.consumer_key and self.consumer_secret and self.passkey)
+        # Validate M-Pesa credentials are available
+        if not all([self.consumer_key, self.consumer_secret, self.passkey]):
+            raise Exception("M-Pesa credentials not configured. Please set MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, and MPESA_PASSKEY environment variables.")
         
         # Environment configuration
         self.environment = os.getenv('MPESA_ENVIRONMENT', 'sandbox').lower()
@@ -30,27 +31,23 @@ class PaymentService:
         self.min_amount = float(os.getenv('MIN_PAYMENT_AMOUNT', '1.0'))
         self.max_amount = float(os.getenv('MAX_PAYMENT_AMOUNT', '70000.0'))
         
-        if self.mpesa_available:
-            # API URLs based on environment
-            if self.environment == 'production':
-                self.base_url = 'https://api.safaricom.co.ke'
-            else:
-                self.base_url = 'https://sandbox.safaricom.co.ke'
-                
-            self.auth_url = f'{self.base_url}/oauth/v1/generate?grant_type=client_credentials'
-            self.stk_push_url = f'{self.base_url}/mpesa/stkpush/v1/processrequest'
-            print(f"💳 Payment service initialized with M-Pesa credentials ({self.environment} mode)")
+        # API URLs based on environment
+        if self.environment == 'production':
+            self.base_url = 'https://api.safaricom.co.ke'
         else:
-            print("⚠️ Payment service initialized in demo mode (M-Pesa credentials not configured)")
+            self.base_url = 'https://sandbox.safaricom.co.ke'
+            
+        self.auth_url = f'{self.base_url}/oauth/v1/generate?grant_type=client_credentials'
+        self.stk_push_url = f'{self.base_url}/mpesa/stkpush/v1/processrequest'
+        print(f"💳 M-Pesa Payment service initialized ({self.environment} mode)")
+        print(f"💳 Business Short Code: {self.business_short_code}")
+        print(f"💳 Callback URL: {self.callback_url}")
         
         self.access_token = None
         self.token_expires_at = None
     
     async def get_access_token(self) -> str:
         """Get M-Pesa access token"""
-        if not self.mpesa_available:
-            raise Exception("M-Pesa credentials not configured")
-            
         # Check if token is still valid
         if self.access_token and self.token_expires_at and datetime.now() < self.token_expires_at:
             return self.access_token
@@ -64,8 +61,9 @@ class PaymentService:
                 'Content-Type': 'application/json'
             }
             
-            response = requests.get(self.auth_url, headers=headers)
-            response.raise_for_status()
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(self.auth_url, headers=headers)
+                response.raise_for_status()
             
             data = response.json()
             self.access_token = data['access_token']
@@ -75,6 +73,9 @@ class PaymentService:
             print("✅ M-Pesa access token obtained")
             return self.access_token
             
+        except httpx.HTTPStatusError as e:
+            print(f"❌ M-Pesa API returned error: {e.response.status_code} - {e.response.text}")
+            raise Exception(f"M-Pesa authentication failed: {e.response.status_code}")
         except Exception as e:
             print(f"❌ Failed to get M-Pesa access token: {e}")
             raise Exception(f"Authentication failed: {str(e)}")
@@ -88,17 +89,9 @@ class PaymentService:
     ) -> Dict[str, Any]:
         """Initiate M-Pesa STK Push"""
         
-        # If M-Pesa is not available, use demo mode
-        if not self.mpesa_available:
-            return await self.demo_stk_push(phone_number, amount, account_reference, transaction_desc)
-        
         try:
-            # Get access token (will fall back to demo if credentials not available)
-            try:
-                access_token = await self.get_access_token()
-            except Exception as auth_error:
-                print(f"⚠️ M-Pesa authentication failed, using demo mode: {auth_error}")
-                return await self.demo_stk_push(phone_number, amount, account_reference, transaction_desc)
+            # Get access token
+            access_token = await self.get_access_token()
             
             # Generate timestamp
             timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
@@ -135,22 +128,26 @@ class PaymentService:
                 'Content-Type': 'application/json'
             }
             
-            response = requests.post(self.stk_push_url, json=payload, headers=headers)
-            response.raise_for_status()
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(self.stk_push_url, json=payload, headers=headers)
+                response.raise_for_status()
             
             result = response.json()
             
             # Store transaction in database
             transaction_id = f"txn_{datetime.now().strftime('%Y%m%d%H%M%S')}_{phone_number[-4:]}"
-            await self.store_transaction(
-                transaction_id=transaction_id,
-                phone_number=phone_number,
-                amount=amount,
-                account_reference=account_reference,
-                checkout_request_id=result.get('CheckoutRequestID'),
-                merchant_request_id=result.get('MerchantRequestID'),
-                status='pending'
-            )
+            try:
+                await self.store_transaction(
+                    transaction_id=transaction_id,
+                    phone_number=phone_number,
+                    amount=amount,
+                    account_reference=account_reference,
+                    checkout_request_id=result.get('CheckoutRequestID'),
+                    merchant_request_id=result.get('MerchantRequestID'),
+                    status='pending'
+                )
+            except Exception as e:
+                print(f"⚠️ Could not store transaction: {e}")
             
             return {
                 'success': True,
@@ -163,11 +160,25 @@ class PaymentService:
                 'response_description': result.get('ResponseDescription')
             }
             
-        except requests.exceptions.RequestException as e:
+        except httpx.HTTPStatusError as e:
+            print(f"❌ M-Pesa API returned error: {e.response.status_code} - {e.response.text}")
+            error_data = {}
+            try:
+                error_data = e.response.json()
+            except:
+                pass
+            
+            return {
+                'success': False,
+                'message': error_data.get('errorMessage', f'M-Pesa API error: {e.response.status_code}'),
+                'error_code': error_data.get('errorCode'),
+                'response_code': str(e.response.status_code)
+            }
+        except httpx.RequestError as e:
             print(f"❌ M-Pesa API request failed: {e}")
             return {
                 'success': False,
-                'message': f'Payment request failed: {str(e)}',
+                'message': 'Network error connecting to M-Pesa. Please try again.',
                 'error': str(e)
             }
         except Exception as e:
@@ -178,56 +189,7 @@ class PaymentService:
                 'error': str(e)
             }
     
-    async def demo_stk_push(
-        self, 
-        phone_number: str, 
-        amount: float, 
-        account_reference: str,
-        transaction_desc: str
-    ) -> Dict[str, Any]:
-        """Demo STK Push for development/testing"""
-        try:
-            # Generate demo transaction ID
-            transaction_id = f"demo_txn_{datetime.now().strftime('%Y%m%d%H%M%S')}_{phone_number[-4:]}"
-            checkout_request_id = f"ws_CO_DMZ_{datetime.now().strftime('%Y%m%d%H%M%S')}_demo"
-            merchant_request_id = f"demo_merchant_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            
-            # Store demo transaction
-            await self.store_transaction(
-                transaction_id=transaction_id,
-                phone_number=phone_number,
-                amount=amount,
-                account_reference=account_reference,
-                checkout_request_id=checkout_request_id,
-                merchant_request_id=merchant_request_id,
-                status='demo_pending'
-            )
-            
-            print(f"📱 DEMO M-Pesa STK Push")
-            print(f"📱 Phone: {phone_number}")
-            print(f"📱 Amount: KES {amount}")
-            print(f"📱 Description: {transaction_desc}")
-            print(f"📱 Transaction ID: {transaction_id}")
-            
-            # Simulate successful response
-            return {
-                'success': True,
-                'message': f'DEMO: STK Push initiated successfully for {phone_number}',
-                'transaction_id': transaction_id,
-                'checkout_request_id': checkout_request_id,
-                'merchant_request_id': merchant_request_id,
-                'customer_message': f'DEMO: Check your phone ({phone_number}) for M-Pesa prompt to donate KES {amount}',
-                'response_code': '0',
-                'response_description': 'Success. Request accepted for processing'
-            }
-            
-        except Exception as e:
-            print(f"❌ Demo STK Push failed: {e}")
-            return {
-                'success': False,
-                'message': f'Demo payment failed: {str(e)}',
-                'error': str(e)
-            }
+
     
     async def store_transaction(
         self,
@@ -240,18 +202,42 @@ class PaymentService:
         status: str = 'pending'
     ):
         """Store transaction in database"""
-        async for db in get_db():
-            await db.execute("""
-                INSERT OR REPLACE INTO payment_transactions 
-                (transaction_id, phone_number, amount, account_reference, 
-                 checkout_request_id, merchant_request_id, status, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                transaction_id, phone_number, amount, account_reference,
-                checkout_request_id, merchant_request_id, status, datetime.now().isoformat()
-            ))
-            await db.commit()
-            break
+        try:
+            async for db in get_db():
+                # Create table if it doesn't exist
+                await db.execute("""
+                    CREATE TABLE IF NOT EXISTS payment_transactions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        transaction_id TEXT UNIQUE,
+                        phone_number TEXT,
+                        amount REAL,
+                        account_reference TEXT,
+                        checkout_request_id TEXT,
+                        merchant_request_id TEXT,
+                        status TEXT,
+                        result_code INTEGER,
+                        result_description TEXT,
+                        mpesa_receipt_number TEXT,
+                        transaction_date TEXT,
+                        created_at TEXT,
+                        updated_at TEXT
+                    )
+                """)
+                
+                await db.execute("""
+                    INSERT OR REPLACE INTO payment_transactions 
+                    (transaction_id, phone_number, amount, account_reference, 
+                     checkout_request_id, merchant_request_id, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    transaction_id, phone_number, amount, account_reference,
+                    checkout_request_id, merchant_request_id, status, datetime.now().isoformat()
+                ))
+                await db.commit()
+                break
+        except Exception as e:
+            print(f"⚠️ Failed to store transaction: {e}")
+            # Continue without storing - don't fail the payment
     
     async def handle_callback(self, callback_data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle M-Pesa callback"""

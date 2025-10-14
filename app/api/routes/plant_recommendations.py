@@ -71,7 +71,7 @@ KENYAN_PLANTS_DATABASE = [
             "soilPH": "6.0-7.5",
             "soilType": "Well-drained loamy soil"
         },
-        "image": "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=300&h=200&fit=crop&q=80",
+        "image": "https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=300&h=200&fit=crop&q=80",
         "aiInsights": "Based on current climate patterns, maize shows excellent adaptation potential in your region. Consider drought-resistant varieties for better yields.",
         "category": "Cereal",
         "difficulty": "Easy"
@@ -96,7 +96,7 @@ KENYAN_PLANTS_DATABASE = [
             "soilPH": "6.0-8.5",
             "soilType": "Sandy loam to clay loam"
         },
-        "image": "https://images.unsplash.com/photo-1595854341625-f33ee10dbf94?w=300&h=200&fit=crop&q=80",
+        "image": "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=300&h=200&fit=crop&q=80",
         "aiInsights": "Highly recommended for climate resilience. Sorghum thrives in semi-arid conditions and requires minimal water.",
         "category": "Cereal",
         "difficulty": "Easy"
@@ -121,7 +121,7 @@ KENYAN_PLANTS_DATABASE = [
             "soilPH": "5.5-7.0",
             "soilType": "Well-drained sandy loam"
         },
-        "image": "https://images.unsplash.com/photo-1509358271058-acd22cc93898?w=300&h=200&fit=crop&q=80",
+        "image": "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=300&h=200&fit=crop&q=80",
         "aiInsights": "Perfect for food security. Orange varieties provide essential nutrients for children and improve soil health.",
         "category": "Root Vegetable",
         "difficulty": "Easy"
@@ -146,7 +146,7 @@ KENYAN_PLANTS_DATABASE = [
             "soilPH": "5.5-7.0",
             "soilType": "Well-drained sandy soil"
         },
-        "image": "https://images.unsplash.com/photo-1582284540020-8acbe03f4924?w=300&h=200&fit=crop&q=80",
+        "image": "https://images.unsplash.com/photo-1606588260447-2d3d55010b2e?w=300&h=200&fit=crop&q=80",
         "aiInsights": "Excellent choice for food security. Cassava can survive harsh conditions and provides reliable yields even in poor soils.",
         "category": "Root Vegetable",
         "difficulty": "Easy"
@@ -171,7 +171,7 @@ KENYAN_PLANTS_DATABASE = [
             "soilPH": "5.0-8.2",
             "soilType": "Well-drained loamy soil"
         },
-        "image": "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=300&h=200&fit=crop",
+        "image": "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=300&h=200&fit=crop&q=80",
         "aiInsights": "Ideal for nutritional security. Finger millet is highly nutritious and well-adapted to marginal lands.",
         "category": "Cereal",
         "difficulty": "Medium"
@@ -196,7 +196,7 @@ KENYAN_PLANTS_DATABASE = [
             "soilPH": "6.0-7.5",
             "soilType": "Fertile, well-drained soil"
         },
-        "image": "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=300&h=200&fit=crop",
+        "image": "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=300&h=200&fit=crop&q=80",
         "aiInsights": "Perfect for kitchen gardens. Managu is highly nutritious and can be grown year-round with minimal care.",
         "category": "Leafy Vegetable",
         "difficulty": "Easy"
@@ -221,7 +221,7 @@ KENYAN_PLANTS_DATABASE = [
             "soilPH": "6.0-7.5",
             "soilType": "Sandy loam to clay loam"
         },
-        "image": "https://images.unsplash.com/photo-1592419044706-39796d40f98c?w=300&h=200&fit=crop",
+        "image": "https://images.unsplash.com/photo-1592419044706-39796d40f98c?w=300&h=200&fit=crop&q=80",
         "aiInsights": "Excellent for soil improvement. Cowpeas fix nitrogen naturally and provide both protein-rich grains and nutritious leaves.",
         "category": "Legume",
         "difficulty": "Easy"

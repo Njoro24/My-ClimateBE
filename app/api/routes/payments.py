@@ -6,6 +6,7 @@ Handles M-Pesa and other payment integrations
 from fastapi import APIRouter, HTTPException, Depends, status, Request
 from pydantic import BaseModel, validator
 from typing import Optional, Dict, Any
+from datetime import datetime
 import aiosqlite
 from app.database.database import get_db
 from app.api.routes.auth import get_current_user
@@ -58,16 +59,15 @@ class TransactionStatusResponse(BaseModel):
     mpesa_receipt_number: Optional[str] = None
     created_at: Optional[str] = None
 
-@router.post("/mpesa/stk-push", response_model=PaymentResponse)
+@router.post("/mpesa/initiate", response_model=PaymentResponse)
 async def initiate_mpesa_payment(
     payment_request: PaymentRequest,
-    current_user = Depends(get_current_user),
     db: aiosqlite.Connection = Depends(get_db)
 ):
     """Initiate M-Pesa STK Push payment"""
     try:
-        # Create account reference with user ID
-        account_reference = f"CWC_{current_user['id']}"
+        # Create account reference with timestamp for demo
+        account_reference = f"CWC_DEMO_{datetime.now().strftime('%Y%m%d%H%M%S')}"
         
         # Customize transaction description
         transaction_desc = f"Donation to Climate Witness Chain - {payment_request.description}"
@@ -170,21 +170,24 @@ async def get_user_transactions(
 
 @router.get("/test")
 async def test_payment_service():
-    """Test payment service configuration"""
+    """Test M-Pesa service configuration and connectivity"""
     try:
         # Test access token generation
-        token = await payment_service.get_access_token()
+        access_token = await payment_service.get_access_token()
         
         return {
-            "status": "Payment service is configured",
-            "token_obtained": bool(token),
+            "status": "M-Pesa service is configured and connected",
+            "environment": payment_service.environment,
             "business_short_code": payment_service.business_short_code,
-            "callback_url": payment_service.callback_url
+            "callback_url": payment_service.callback_url,
+            "token_obtained": bool(access_token),
+            "ready_for_payments": True
         }
         
     except Exception as e:
         return {
-            "status": "Payment service configuration error",
+            "status": "M-Pesa service configuration error",
             "error": str(e),
-            "message": "Please check your M-Pesa API credentials"
+            "message": "Please check your M-Pesa API credentials",
+            "ready_for_payments": False
         }

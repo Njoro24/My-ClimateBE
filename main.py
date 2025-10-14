@@ -63,7 +63,7 @@ cors_origins = os.getenv('CORS_ORIGINS', 'https://my-climate-six.vercel.app,http
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=cors_origins,c
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
