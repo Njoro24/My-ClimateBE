@@ -1,13 +1,16 @@
-# Minimal requirements for Railway deployment
+# Requirements for Railway deployment
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 python-dotenv==1.0.1
 pydantic==2.5.0
 python-multipart==0.0.6
-httpx==0.25.2
 aiosqlite==0.19.0
 sqlalchemy==2.0.23
 passlib[bcrypt]==1.7.4
 python-jose[cryptography]==3.3.0
 bcrypt==4.1.2
 requests==2.31.0
+
+# Additional dependencies for M-Pesa integration
+certifi>=2023.7.22
+urllib3>=2.0.4

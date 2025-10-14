@@ -9,7 +9,9 @@ import os
 import subprocess
 import tempfile
 from typing import Dict, Any, List, Optional, Tuple
-import httpx
+import requests
+import asyncio
+import concurrent.futures
 from datetime import datetime
 import logging
 try:
@@ -45,7 +47,7 @@ class AIMeTTaService:
             return
         
         self.anthropic_api_key = anthropic_api_key or os.getenv("ANTHROPIC_API_KEY", "demo-key")
-        self.client = httpx.AsyncClient(timeout=30.0)
+        # Using requests instead of httpx for reliability
         self._execution_lock = asyncio.Lock()  # Add async lock for subprocess execution
         
         # Initialize Anthropic client

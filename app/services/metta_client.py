@@ -1,5 +1,6 @@
-import httpx
+import requests
 import asyncio
+import concurrent.futures
 from typing import Dict, Optional, List
 import logging
 import os
@@ -13,60 +14,78 @@ class MeTTaClimateClient:
     async def submit_climate_report(self, report: ClimateReportCreate) -> Dict:
         """Submit a climate report to MeTTa for pattern analysis"""
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                # Convert enums to strings for JSON serialization
-                report_data = report.dict()
-                report_data['event_type'] = report_data['event_type'].value
-                report_data['severity'] = report_data['severity'].value
-                
-                response = await client.post(
-                    f"{self.base_url}/report",
-                    json=report_data
+            # Convert enums to strings for JSON serialization
+            report_data = report.dict()
+            report_data['event_type'] = report_data['event_type'].value
+            report_data['severity'] = report_data['severity'].value
+            
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                response = await loop.run_in_executor(
+                    executor,
+                    lambda: requests.post(
+                        f"{self.base_url}/report",
+                        json=report_data,
+                        timeout=self.timeout
+                    )
                 )
                 response.raise_for_status()
                 return response.json()
                 
-        except httpx.HTTPStatusError as e:
+        except requests.exceptions.HTTPError as e:
             logging.error(f"MeTTa service returned error: {e.response.status_code} - {e.response.text}")
             return {'error': f"Service error: {e.response.status_code}", 'status': 'failed'}
-        except httpx.RequestError as e:
+        except requests.exceptions.RequestException as e:
             logging.error(f"Failed to submit climate report to MeTTa: {str(e)}")
             return {'error': 'Service unavailable', 'status': 'failed'}
     
     async def get_location_analysis(self, location: str, days_back: int = 30) -> Optional[LocationAnalysisResponse]:
         """Get climate pattern analysis for a specific location"""
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(
-                    f"{self.base_url}/analyze/{location}",
-                    params={'days_back': days_back}
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                response = await loop.run_in_executor(
+                    executor,
+                    lambda: requests.get(
+                        f"{self.base_url}/analyze/{location}",
+                        params={'days_back': days_back},
+                        timeout=self.timeout
+                    )
                 )
                 response.raise_for_status()
                 data = response.json()
                 return LocationAnalysisResponse(**data)
                 
-        except httpx.RequestError as e:
+        except requests.exceptions.RequestException as e:
             logging.error(f"Failed to get location analysis from MeTTa: {str(e)}")
             return None
     
     async def get_global_patterns(self) -> Dict:
         """Get global climate patterns across all locations"""
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(f"{self.base_url}/patterns/global")
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                response = await loop.run_in_executor(
+                    executor,
+                    lambda: requests.get(f"{self.base_url}/patterns/global", timeout=self.timeout)
+                )
                 response.raise_for_status()
                 return response.json()
                 
-        except httpx.RequestError as e:
+        except requests.exceptions.RequestException as e:
             logging.error(f"Failed to get global patterns from MeTTa: {str(e)}")
             return {'patterns': {}, 'error': str(e)}
     
     async def health_check(self) -> bool:
         """Check if MeTTa service is healthy"""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get(f"{self.base_url}/health")
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                response = await loop.run_in_executor(
+                    executor,
+                    lambda: requests.get(f"{self.base_url}/health", timeout=5.0)
+                )
                 return response.status_code == 200
                 
-        except httpx.RequestError:
+        except requests.exceptions.RequestException:
             return False

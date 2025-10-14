@@ -6,7 +6,9 @@ import asyncio
 import base64
 import os
 from typing import Dict, Any, Optional, List
-import httpx
+import requests
+import asyncio
+import concurrent.futures
 from datetime import datetime
 import logging
 import dotenv
@@ -29,7 +31,7 @@ class AIVerificationService:
             self.client = None
             return
         self.anthropic_api_key = anthropic_api_key or os.getenv("ANTHROPIC_API_KEY")
-        self.client = httpx.AsyncClient(timeout=30.0)
+        # Using requests instead of httpx for reliability
         
         # Initialize Anthropic client
         if self.anthropic_api_key and self.anthropic_api_key != "demo-key":

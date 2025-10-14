@@ -172,14 +172,34 @@ async def get_user_transactions(
 async def test_payment_service():
     """Test M-Pesa service configuration and connectivity"""
     try:
+        # Check HTTP client availability
+        from app.services.payment_service import HTTP_CLIENT
+        
+        # Check if credentials are available
+        if not payment_service.credentials_available:
+            return {
+                "status": "M-Pesa credentials not configured",
+                "credentials_available": False,
+                "http_client": HTTP_CLIENT,
+                "ready_for_payments": False,
+                "setup_instructions": {
+                    "step1": "Get M-Pesa credentials from https://developer.safaricom.co.ke/",
+                    "step2": "Set environment variables: MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, MPESA_PASSKEY",
+                    "step3": "Set MPESA_BUSINESS_SHORT_CODE and MPESA_CALLBACK_URL",
+                    "step4": "Restart the application"
+                }
+            }
+        
         # Test access token generation
         access_token = await payment_service.get_access_token()
         
         return {
             "status": "M-Pesa service is configured and connected",
+            "credentials_available": True,
             "environment": payment_service.environment,
             "business_short_code": payment_service.business_short_code,
             "callback_url": payment_service.callback_url,
+            "http_client": HTTP_CLIENT,
             "token_obtained": bool(access_token),
             "ready_for_payments": True
         }
@@ -187,6 +207,7 @@ async def test_payment_service():
     except Exception as e:
         return {
             "status": "M-Pesa service configuration error",
+            "credentials_available": payment_service.credentials_available,
             "error": str(e),
             "message": "Please check your M-Pesa API credentials",
             "ready_for_payments": False

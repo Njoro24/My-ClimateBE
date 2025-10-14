@@ -3,9 +3,11 @@ M-Pesa Integration Service for Climate Witness Chain
 Handles STK Push, payment callbacks, and transaction queries
 """
 
-import httpx
+import requests
 import base64
 import json
+import asyncio
+import concurrent.futures
 from datetime import datetime
 import os
 from typing import Dict, Any, Optional
@@ -51,17 +53,17 @@ class MpesaService:
             return None
             
         try:
-            # Create basic auth header
-            credentials = f"{self.consumer_key}:{self.consumer_secret}"
-            encoded_credentials = base64.b64encode(credentials.encode()).decode()
-            
-            headers = {
-                'Authorization': f'Basic {encoded_credentials}',
-                'Content-Type': 'application/json'
-            }
-            
-            async with httpx.AsyncClient() as client:
-                response = await client.get(self.auth_url, headers=headers, timeout=30)
+            # Use requests in thread pool for async compatibility
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                response = await loop.run_in_executor(
+                    executor,
+                    lambda: requests.get(
+                        self.auth_url,
+                        auth=(self.consumer_key, self.consumer_secret),
+                        timeout=30
+                    )
+                )
                 
                 if response.status_code == 200:
                     data = response.json()
@@ -135,9 +137,13 @@ class MpesaService:
                 'Content-Type': 'application/json'
             }
             
-            # Make STK push request
-            async with httpx.AsyncClient() as client:
-                response = await client.post(self.stk_push_url, json=payload, headers=headers, timeout=30)
+            # Make STK push request using requests in thread pool
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                response = await loop.run_in_executor(
+                    executor,
+                    lambda: requests.post(self.stk_push_url, json=payload, headers=headers, timeout=30)
+                )
                 
                 if response.status_code == 200:
                     data = response.json()
@@ -216,9 +222,13 @@ class MpesaService:
                 'Content-Type': 'application/json'
             }
             
-            # Make query request
-            async with httpx.AsyncClient() as client:
-                response = await client.post(self.query_url, json=payload, headers=headers, timeout=30)
+            # Make query request using requests in thread pool
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                response = await loop.run_in_executor(
+                    executor,
+                    lambda: requests.post(self.query_url, json=payload, headers=headers, timeout=30)
+                )
                 
                 if response.status_code == 200:
                     data = response.json()
