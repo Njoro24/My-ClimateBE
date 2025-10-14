@@ -6,15 +6,14 @@ Handles M-Pesa and other payment integrations
 import os
 import base64
 import asyncio
+import concurrent.futures
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 import aiosqlite
 from app.database.database import get_db
 
-# Use requests only - it's reliable and always available
+# Import requests - it's in requirements.txt
 import requests
-import concurrent.futures
-HTTP_CLIENT = 'requests'
 
 class PaymentService:
     def __init__(self):
@@ -23,7 +22,7 @@ class PaymentService:
         self.consumer_secret = os.getenv('MPESA_CONSUMER_SECRET')
         self.business_short_code = os.getenv('MPESA_BUSINESS_SHORT_CODE', '174379')
         self.passkey = os.getenv('MPESA_PASSKEY')
-        self.callback_url = os.getenv('MPESA_CALLBACK_URL', 'https://your-domain.com/api/payments/mpesa/callback')
+        self.callback_url = os.getenv('MPESA_CALLBACK_URL', 'https://web-production-92f64.up.railway.app/api/payments/mpesa/callback')
         
         # Check if M-Pesa credentials are real (not placeholders)
         placeholder_values = [
@@ -38,11 +37,6 @@ class PaymentService:
             self.consumer_secret not in placeholder_values and
             self.passkey not in placeholder_values
         )
-        
-        if not self.credentials_available:
-            print("⚠️ M-Pesa credentials are set to placeholder values.")
-            print(f"⚠️ Current values: KEY={self.consumer_key[:20]}..., SECRET={self.consumer_secret[:20]}..., PASSKEY={self.passkey[:20]}...")
-            print("⚠️ Replace with real credentials from https://developer.safaricom.co.ke/")
         
         # Environment configuration
         self.environment = os.getenv('MPESA_ENVIRONMENT', 'sandbox').lower()
@@ -60,10 +54,8 @@ class PaymentService:
             self.auth_url = f'{self.base_url}/oauth/v1/generate?grant_type=client_credentials'
             self.stk_push_url = f'{self.base_url}/mpesa/stkpush/v1/processrequest'
             print(f"💳 M-Pesa Payment service initialized ({self.environment} mode)")
-            print(f"💳 Business Short Code: {self.business_short_code}")
-            print(f"💳 Callback URL: {self.callback_url}")
         else:
-            print("💳 M-Pesa Payment service initialized in configuration mode")
+            print("⚠️ M-Pesa credentials not configured")
         
         self.access_token = None
         self.token_expires_at = None
@@ -78,7 +70,7 @@ class PaymentService:
             return self.access_token
         
         try:
-            # Use requests with basic auth in thread pool for async compatibility
+            # Use requests in thread pool for async compatibility
             loop = asyncio.get_event_loop()
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 response = await loop.run_in_executor(
@@ -94,18 +86,14 @@ class PaymentService:
             
             self.access_token = data['access_token']
             expires_in = int(data['expires_in'])
-            self.token_expires_at = datetime.now() + timedelta(seconds=expires_in - 60)  # Refresh 1 minute early
+            self.token_expires_at = datetime.now() + timedelta(seconds=expires_in - 60)
             
             print("✅ M-Pesa access token obtained")
             return self.access_token
             
         except Exception as e:
-            if hasattr(e, 'response'):
-                print(f"❌ M-Pesa API returned error: {e.response.status_code} - {e.response.text}")
-                raise Exception(f"M-Pesa authentication failed: {e.response.status_code}")
-            else:
-                print(f"❌ Failed to get M-Pesa access token: {e}")
-                raise Exception(f"Authentication failed: {str(e)}")
+            print(f"❌ Failed to get M-Pesa access token: {e}")
+            raise Exception(f"Authentication failed: {str(e)}")
     
     async def initiate_stk_push(
         self, 
@@ -116,19 +104,11 @@ class PaymentService:
     ) -> Dict[str, Any]:
         """Initiate M-Pesa STK Push"""
         
-        # Check if credentials are available
         if not self.credentials_available:
             return {
                 'success': False,
                 'message': 'M-Pesa credentials not configured',
-                'error': 'CREDENTIALS_MISSING',
-                'setup_required': True,
-                'instructions': {
-                    'step1': 'Get M-Pesa credentials from https://developer.safaricom.co.ke/',
-                    'step2': 'Set environment variables: MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, MPESA_PASSKEY',
-                    'step3': 'Restart the application',
-                    'step4': 'Test with /api/payments/test endpoint'
-                }
+                'error': 'CREDENTIALS_MISSING'
             }
         
         try:
@@ -142,7 +122,7 @@ class PaymentService:
             password_string = f"{self.business_short_code}{self.passkey}{timestamp}"
             password = base64.b64encode(password_string.encode()).decode()
             
-            # Format phone number (ensure it starts with 254)
+            # Format phone number
             if phone_number.startswith('0'):
                 phone_number = '254' + phone_number[1:]
             elif phone_number.startswith('+254'):
@@ -170,7 +150,7 @@ class PaymentService:
                 'Content-Type': 'application/json'
             }
             
-            # Use requests in thread pool for async compatibility
+            # Make STK push request
             loop = asyncio.get_event_loop()
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 response = await loop.run_in_executor(
@@ -180,7 +160,7 @@ class PaymentService:
                 response.raise_for_status()
                 result = response.json()
             
-            # Store transaction in database
+            # Store transaction
             transaction_id = f"txn_{datetime.now().strftime('%Y%m%d%H%M%S')}_{phone_number[-4:]}"
             try:
                 await self.store_transaction(
@@ -206,27 +186,15 @@ class PaymentService:
                 'response_description': result.get('ResponseDescription')
             }
             
-        except requests.exceptions.HTTPError as e:
-            print(f"❌ M-Pesa API returned error: {e.response.status_code} - {e.response.text}")
-            error_data = {}
-            try:
-                error_data = e.response.json()
-            except:
-                pass
-            
+        except Exception as e:
+            print(f"❌ STK Push failed: {e}")
             return {
                 'success': False,
-                'message': error_data.get('errorMessage', f'M-Pesa API error: {e.response.status_code}'),
-                'error_code': error_data.get('errorCode'),
-                'response_code': str(e.response.status_code)
-            }
-        except requests.exceptions.RequestException as e:
-            print(f"❌ M-Pesa API request failed: {e}")
-            return {
-                'success': False,
-                'message': 'Network error connecting to M-Pesa. Please try again.',
+                'message': f'Payment initialization failed: {str(e)}',
                 'error': str(e)
             }
+            
+
         except Exception as e:
             print(f"❌ STK Push failed: {e}")
             return {

@@ -1,0 +1,5 @@
+Deployment trigger - Updated: 2024-10-14
+- Fixed M-Pesa payment service with real implementation
+- Fixed plant recommendation images
+- Removed all demo code
+- Using requests library properly
