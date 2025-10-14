@@ -26,6 +26,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:3000",
+        "https://my-climate-1txf.vercel.app",
         "https://my-climate-1txf-aiocezz1a-njoro24s-projects.vercel.app",
         "https://my-climate-six.vercel.app"
     ],
