@@ -21,11 +21,14 @@ app = FastAPI(
 )
 
 # CORS configuration
-cors_origins = os.getenv('CORS_ORIGINS', 'https://my-climate-six.vercel.app,http://localhost:3000,http://localhost:5173,*').split(',')
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://my-climate-1txf-aiocezz1a-njoro24s-projects.vercel.app",
+        "https://my-climate-six.vercel.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
