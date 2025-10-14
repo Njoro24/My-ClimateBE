@@ -10,8 +10,9 @@ import uvicorn
 import time
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables - prioritize Railway config
+load_dotenv('.env.railway')  # Load Railway-specific config first
+load_dotenv()  # Then load default .env as fallback
 
 async def initialize_database():
     """Initialize database on startup"""

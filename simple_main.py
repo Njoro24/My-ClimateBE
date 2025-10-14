@@ -10,8 +10,9 @@ import os
 import json
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables - prioritize Railway config
+load_dotenv('.env.railway')  # Load Railway-specific config first
+load_dotenv()  # Then load default .env as fallback
 
 # Force set CORS origins for Railway deployment
 if not os.getenv('CORS_ORIGINS'):
@@ -27,8 +28,11 @@ app = FastAPI(
 # CORS configuration - get from environment or use defaults
 cors_origins = os.getenv('CORS_ORIGINS', 'https://my-climate-1txf.vercel.app,https://my-climate-six.vercel.app,http://localhost:5173,http://localhost:3000').split(',')
 
-# Add debug logging for CORS
+# Add debug logging for CORS and M-Pesa
 print(f"🔧 CORS Origins configured: {cors_origins}")
+print(f"🔧 M-Pesa Consumer Key: {'SET' if os.getenv('MPESA_CONSUMER_KEY') else 'NOT SET'}")
+print(f"🔧 M-Pesa Environment: {os.getenv('MPESA_ENVIRONMENT', 'NOT SET')}")
+print(f"🔧 M-Pesa Callback URL: {os.getenv('MPESA_CALLBACK_URL', 'NOT SET')}")
 
 app.add_middleware(
     CORSMiddleware,
