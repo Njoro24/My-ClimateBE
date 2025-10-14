@@ -287,13 +287,29 @@ async def initiate_payment(payment: PaymentRequest):
         # Try to import and use M-Pesa service
         try:
             from app.services.mpesa_service import mpesa_service
+            
+            # Check if M-Pesa is properly configured
+            if not mpesa_service.is_configured:
+                raise Exception("M-Pesa credentials not configured")
+            
             result = await mpesa_service.initiate_stk_push(
                 phone=phone,
                 amount=payment.amount,
                 account_reference=payment.reference or "Climate Witness Chain",
                 transaction_desc=f"Climate Witness Chain - {payment.reference or 'Donation'}"
             )
+            
+            # If the result indicates an access token failure, provide a better error
+            if not result.get('success') and 'access token' in result.get('message', '').lower():
+                return {
+                    'success': False,
+                    'message': 'M-Pesa service temporarily unavailable. Please try again later.',
+                    'error_type': 'service_unavailable',
+                    'technical_details': 'Unable to authenticate with M-Pesa API. This may be due to expired test credentials or API maintenance.'
+                }
+            
             return result
+            
         except ImportError:
             # Fallback to demo response if service not available
             from datetime import datetime
@@ -308,6 +324,22 @@ async def initiate_payment(payment: PaymentRequest):
                 'demo_mode': True,
                 'note': 'M-Pesa service not configured - this is a demo response'
             }
+        except Exception as e:
+            if 'credentials not configured' in str(e):
+                from datetime import datetime
+                return {
+                    'success': True,
+                    'message': 'Demo STK push sent (M-Pesa credentials not configured)',
+                    'checkout_request_id': f'demo_{datetime.now().strftime("%Y%m%d%H%M%S")}',
+                    'merchant_request_id': f'demo_merchant_{datetime.now().strftime("%Y%m%d%H%M%S")}',
+                    'response_code': '0',
+                    'response_description': 'Demo payment initiated',
+                    'customer_message': f'Demo: Check your phone {phone} for payment prompt',
+                    'demo_mode': True,
+                    'note': 'M-Pesa credentials not configured - this is a demo response'
+                }
+            else:
+                raise
         
     except HTTPException:
         raise
@@ -358,17 +390,63 @@ async def mpesa_callback(callback_data: dict):
             "ResultDesc": f"Callback processing failed: {str(e)}"
         }
 
+@app.get("/api/payments/mpesa/test-auth")
+async def test_mpesa_auth():
+    """Test M-Pesa authentication directly"""
+    try:
+        from app.services.mpesa_service import mpesa_service
+        
+        print("🔧 Testing M-Pesa Authentication...")
+        access_token = await mpesa_service.get_access_token()
+        
+        return {
+            "success": bool(access_token),
+            "access_token_preview": f"{access_token[:20]}..." if access_token else None,
+            "consumer_key": f"{mpesa_service.consumer_key[:20]}..." if mpesa_service.consumer_key else "NOT SET",
+            "auth_url": mpesa_service.auth_url,
+            "environment": mpesa_service.environment,
+            "is_configured": mpesa_service.is_configured
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 @app.get("/api/payments/health")
 async def payment_health():
     """Check payment service health"""
-    from app.services.mpesa_service import mpesa_service
-    
-    return {
-        "status": "healthy",
-        "mpesa_configured": mpesa_service.is_configured,
-        "environment": mpesa_service.environment if mpesa_service.is_configured else "demo",
-        "message": "M-Pesa service ready" if mpesa_service.is_configured else "M-Pesa in demo mode - configure credentials for real payments"
-    }
+    try:
+        from app.services.mpesa_service import mpesa_service
+        
+        # Test access token
+        access_token = None
+        token_error = None
+        if mpesa_service.is_configured:
+            try:
+                access_token = await mpesa_service.get_access_token()
+                if access_token:
+                    access_token = f"{access_token[:10]}..." if len(access_token) > 10 else access_token
+            except Exception as e:
+                token_error = str(e)
+        
+        return {
+            "status": "healthy",
+            "mpesa_configured": mpesa_service.is_configured,
+            "environment": mpesa_service.environment if mpesa_service.is_configured else "demo",
+            "access_token_test": "success" if access_token else "failed",
+            "access_token_preview": access_token,
+            "token_error": token_error,
+            "consumer_key": f"{mpesa_service.consumer_key[:10]}..." if mpesa_service.consumer_key else "not set",
+            "auth_url": mpesa_service.auth_url if hasattr(mpesa_service, 'auth_url') else "not set",
+            "message": "M-Pesa service ready" if mpesa_service.is_configured else "M-Pesa in demo mode - configure credentials for real payments"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "message": "M-Pesa service error"
+        }
 
 # Researcher Analytics Endpoints
 @app.get("/api/researcher/analytics")

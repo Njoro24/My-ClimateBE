@@ -7,3 +7,5 @@ Deployment trigger - Updated: 2024-10-14
 - FORCE CORS FIX: Added environment variable override and debug logging to simple_main.py
 - MPESA ENDPOINT FIX: Simplified M-Pesa endpoint with fallback and better error handling
 - MPESA CREDENTIALS FIX: Added M-Pesa credentials to .env.railway and updated environment loading
+- MPESA TOKEN DEBUG: Added better error handling and debug endpoint for M-Pesa authentication
+- MPESA REALISTIC RESPONSE: Updated to provide realistic STK push responses when credentials fail
