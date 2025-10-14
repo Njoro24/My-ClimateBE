@@ -13,6 +13,10 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Force set CORS origins for Railway deployment
+if not os.getenv('CORS_ORIGINS'):
+    os.environ['CORS_ORIGINS'] = 'https://my-climate-1txf.vercel.app,https://my-climate-six.vercel.app,http://localhost:5173,http://localhost:3000'
+
 # Create FastAPI app
 app = FastAPI(
     title="Climate Witness Chain API",
@@ -20,16 +24,15 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS configuration
+# CORS configuration - get from environment or use defaults
+cors_origins = os.getenv('CORS_ORIGINS', 'https://my-climate-1txf.vercel.app,https://my-climate-six.vercel.app,http://localhost:5173,http://localhost:3000').split(',')
+
+# Add debug logging for CORS
+print(f"🔧 CORS Origins configured: {cors_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "https://my-climate-1txf.vercel.app",
-        "https://my-climate-1txf-aiocezz1a-njoro24s-projects.vercel.app",
-        "https://my-climate-six.vercel.app"
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,6 +53,16 @@ async def health_check():
         "status": "healthy",
         "service": "climate_witness_api",
         "environment": os.getenv('ENVIRONMENT', 'production')
+    }
+
+@app.get("/cors-debug")
+async def cors_debug():
+    """Debug endpoint to check CORS configuration"""
+    return {
+        "cors_origins": os.getenv('CORS_ORIGINS', 'Not set'),
+        "cors_origins_parsed": cors_origins,
+        "environment": os.getenv('ENVIRONMENT', 'production'),
+        "railway_domain": os.getenv('RAILWAY_PUBLIC_DOMAIN', 'Not set')
     }
 
 # Basic auth endpoint for testing
@@ -247,33 +260,50 @@ async def get_events():
 @app.post("/api/payments/mpesa/initiate")
 async def initiate_payment(payment: PaymentRequest):
     """Initiate M-Pesa STK Push payment"""
+    print(f"🔧 M-Pesa payment request: {payment.dict()}")
     try:
-        # Import M-Pesa service
-        from app.services.mpesa_service import mpesa_service
-        
-        # Validate phone number
-        if not mpesa_service.validate_phone_number(payment.phone):
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid phone number. Please use Kenyan format (e.g., 0712345678 or 254712345678)"
-            )
+        # Simple validation
+        phone = payment.phone.strip()
+        if not (phone.startswith('254') and len(phone) == 12 and phone[3:].isdigit()):
+            if phone.startswith('0') and len(phone) == 10 and phone[1:].isdigit():
+                phone = f"254{phone[1:]}"
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid phone number. Please use Kenyan format (e.g., 0712345678 or 254712345678)"
+                )
         
         # Validate amount
-        if not mpesa_service.validate_amount(payment.amount):
+        if not (1 <= payment.amount <= 70000):
             raise HTTPException(
                 status_code=400,
                 detail="Amount must be between 1 and 70,000 KES"
             )
         
-        # Initiate STK push
-        result = mpesa_service.initiate_stk_push(
-            phone=payment.phone,
-            amount=payment.amount,
-            account_reference=payment.reference or "Climate Witness Chain",
-            transaction_desc=f"Climate Witness Chain - {payment.reference or 'Donation'}"
-        )
-        
-        return result
+        # Try to import and use M-Pesa service
+        try:
+            from app.services.mpesa_service import mpesa_service
+            result = await mpesa_service.initiate_stk_push(
+                phone=phone,
+                amount=payment.amount,
+                account_reference=payment.reference or "Climate Witness Chain",
+                transaction_desc=f"Climate Witness Chain - {payment.reference or 'Donation'}"
+            )
+            return result
+        except ImportError:
+            # Fallback to demo response if service not available
+            from datetime import datetime
+            return {
+                'success': True,
+                'message': 'Demo STK push sent (M-Pesa service not available)',
+                'checkout_request_id': f'demo_{datetime.now().strftime("%Y%m%d%H%M%S")}',
+                'merchant_request_id': f'demo_merchant_{datetime.now().strftime("%Y%m%d%H%M%S")}',
+                'response_code': '0',
+                'response_description': 'Demo payment initiated',
+                'customer_message': f'Demo: Check your phone {phone} for payment prompt',
+                'demo_mode': True,
+                'note': 'M-Pesa service not configured - this is a demo response'
+            }
         
     except HTTPException:
         raise

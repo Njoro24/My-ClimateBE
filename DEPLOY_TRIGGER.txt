@@ -4,3 +4,5 @@ Deployment trigger - Updated: 2024-10-14
 - Removed all demo code
 - Using requests library properly
 - MPESA CORS FIX: Fixed syntax error in main.py and added https://my-climate-1txf.vercel.app to CORS origins
+- FORCE CORS FIX: Added environment variable override and debug logging to simple_main.py
+- MPESA ENDPOINT FIX: Simplified M-Pesa endpoint with fallback and better error handling
