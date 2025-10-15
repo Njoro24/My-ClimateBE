@@ -58,6 +58,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Manual CORS handler for all requests
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Expose-Headers"] = "*"
+    return response
+
 # CORS configuration - Allow all origins to fix deployment issues
 app.add_middleware(
     CORSMiddleware,
@@ -389,11 +399,27 @@ async def climate_health_check():
 @app.options("/{full_path:path}")
 async def options_handler(request: Request):
     """Handle preflight OPTIONS requests"""
-    return {"message": "OK"}
+    from fastapi import Response
+    response = Response()
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Max-Age"] = "86400"
+    return response
 
 @app.get("/")
 async def root():
     return {"message": "Climate Witness Chain API is running"}
+
+@app.get("/api/test-cors")
+async def test_cors():
+    """Test endpoint to verify CORS is working"""
+    return {"message": "CORS is working!", "timestamp": "2024-01-15"}
+
+@app.post("/api/test-cors")
+async def test_cors_post():
+    """Test POST endpoint to verify CORS is working"""
+    return {"message": "CORS POST is working!", "timestamp": "2024-01-15"}
 
 @app.get("/health")
 async def health_check():
