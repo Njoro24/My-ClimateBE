@@ -58,26 +58,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS configuration - Allow all Vercel deployments and local development
-cors_origins = [
-    "https://my-climate-six.vercel.app",
-    "https://my-climate-1txf-m4yxfdpok-njoro24s-projects.vercel.app",
-    "http://localhost:3000",
-    "http://localhost:5173", 
-    "http://localhost:5174",
-    "http://localhost:8080"
-]
-
-# Add any additional origins from environment variable
-env_origins = os.getenv('CORS_ORIGINS', '')
-if env_origins:
-    cors_origins.extend(env_origins.split(','))
-
+# CORS configuration - Allow all origins to fix deployment issues
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app$",  # Allow all Vercel deployments
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins for now
+    allow_credentials=False,  # Must be False when allow_origins=["*"]
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"]
