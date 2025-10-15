@@ -58,21 +58,29 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS configuration from environment
-cors_origins = os.getenv('CORS_ORIGINS', 'https://my-climate-six.vercel.app,https://my-climate-1txf-m4yxfdpok-njoro24s-projects.vercel.app,http://localhost:3000,http://localhost:5173,http://localhost:5174,http://localhost:8080').split(',')
+# CORS configuration - Allow all Vercel deployments and local development
+cors_origins = [
+    "https://my-climate-six.vercel.app",
+    "https://my-climate-1txf-m4yxfdpok-njoro24s-projects.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:5173", 
+    "http://localhost:5174",
+    "http://localhost:8080"
+]
 
-# Add support for Vercel preview deployments
-def cors_allow_origin_regex():
-    import re
-    return re.compile(r"https://.*\.vercel\.app$")
+# Add any additional origins from environment variable
+env_origins = os.getenv('CORS_ORIGINS', '')
+if env_origins:
+    cors_origins.extend(env_origins.split(','))
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app$",
+    allow_origin_regex=r"https://.*\.vercel\.app$",  # Allow all Vercel deployments
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Payment models
@@ -392,6 +400,11 @@ async def climate_health_check():
         "timestamp": datetime.utcnow(),
         "service": "climate_witness_service"
     }
+
+@app.options("/{full_path:path}")
+async def options_handler(request: Request):
+    """Handle preflight OPTIONS requests"""
+    return {"message": "OK"}
 
 @app.get("/")
 async def root():
