@@ -39,7 +39,15 @@ async def vote(request: VoteRequest, crud = None):
 
 @router.get("/proposals/active")
 async def get_active_proposals(crud = None):
-    return {"proposals": await dao_service.get_active_proposals()}
+    try:
+        return {"proposals": await dao_service.get_active_proposals()}
+    except Exception as e:
+        # Fallback response to prevent 404
+        return {
+            "proposals": [],
+            "message": "DAO service temporarily unavailable",
+            "error": str(e)
+        }
 
 @router.get("/stats")
 async def get_stats(crud = None):

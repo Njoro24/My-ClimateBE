@@ -384,6 +384,41 @@ async def test_endpoint():
     """Test endpoint to verify backend is working"""
     return {"message": "Backend is working", "timestamp": datetime.now().isoformat()}
 
+@router.get("/simple-me")
+async def simple_me_endpoint(authorization: str = Header(None)):
+    """Simple /me endpoint for testing"""
+    if not authorization:
+        return {"error": "No authorization header", "authenticated": False}
+    
+    if not authorization.startswith("Bearer "):
+        return {"error": "Invalid authorization format", "authenticated": False}
+    
+    token = authorization.replace("Bearer ", "")
+    
+    # Simple token validation - just check if it starts with access_
+    if not token.startswith("access_"):
+        return {"error": "Invalid token format", "authenticated": False}
+    
+    # Extract user ID from token (simplified)
+    try:
+        parts = token.split("_")
+        if len(parts) >= 2:
+            user_id = parts[1]  # Get user ID from token
+            return {
+                "authenticated": True,
+                "user": {
+                    "id": user_id,
+                    "email": "test@example.com",
+                    "first_name": "Test",
+                    "last_name": "User",
+                    "role": "user"
+                }
+            }
+    except:
+        pass
+    
+    return {"error": "Token parsing failed", "authenticated": False}
+
 
 
 @router.put("/profile")
