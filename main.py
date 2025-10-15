@@ -58,14 +58,27 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Manual CORS handler for all requests
+# Manual CORS handler for all requests - AGGRESSIVE APPROACH
 @app.middleware("http")
 async def add_cors_headers(request: Request, call_next):
+    # Handle preflight OPTIONS requests immediately
+    if request.method == "OPTIONS":
+        from fastapi import Response
+        response = Response()
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Max-Age"] = "86400"
+        response.headers["Access-Control-Allow-Credentials"] = "false"
+        return response
+    
+    # Process normal requests and add CORS headers
     response = await call_next(request)
     response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
     response.headers["Access-Control-Allow-Headers"] = "*"
     response.headers["Access-Control-Expose-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "false"
     return response
 
 # CORS configuration - Allow all origins to fix deployment issues
@@ -408,18 +421,31 @@ async def options_handler(request: Request):
     return response
 
 @app.get("/")
-async def root():
-    return {"message": "Climate Witness Chain API is running"}
+async def root(request: Request):
+    logger.info(f"Root endpoint accessed from origin: {request.headers.get('origin', 'No origin')}")
+    return {"message": "Climate Witness Chain API is running", "cors_enabled": True}
 
 @app.get("/api/test-cors")
-async def test_cors():
+async def test_cors(request: Request):
     """Test endpoint to verify CORS is working"""
-    return {"message": "CORS is working!", "timestamp": "2024-01-15"}
+    return {
+        "message": "CORS is working!", 
+        "timestamp": "2024-01-15",
+        "origin": request.headers.get("origin", "No origin header"),
+        "user_agent": request.headers.get("user-agent", "No user agent"),
+        "method": request.method
+    }
 
 @app.post("/api/test-cors")
-async def test_cors_post():
+async def test_cors_post(request: Request):
     """Test POST endpoint to verify CORS is working"""
-    return {"message": "CORS POST is working!", "timestamp": "2024-01-15"}
+    return {
+        "message": "CORS POST is working!", 
+        "timestamp": "2024-01-15",
+        "origin": request.headers.get("origin", "No origin header"),
+        "content_type": request.headers.get("content-type", "No content type"),
+        "method": request.method
+    }
 
 @app.get("/health")
 async def health_check():
