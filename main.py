@@ -58,58 +58,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Backup manual CORS handler - ensures CORS works even if middleware fails
-@app.middleware("http")
-async def ensure_cors_headers(request: Request, call_next):
-    # Handle preflight OPTIONS requests
-    if request.method == "OPTIONS":
-        from fastapi import Response
-        response = Response()
-        origin = request.headers.get("origin")
-        
-        # Allow specific origins or all for debugging
-        allowed_origins = [
-            "https://my-climate-1txf.vercel.app",
-            "https://my-climate-1txf-git-main-njoro24s-projects.vercel.app", 
-            "https://my-climate-1txf-v3xwkbvop-njoro24s-projects.vercel.app",
-            "http://localhost:3000",
-            "http://localhost:5173"
-        ]
-        
-        if origin in allowed_origins or origin and origin.endswith('.vercel.app'):
-            response.headers["Access-Control-Allow-Origin"] = origin
-        else:
-            response.headers["Access-Control-Allow-Origin"] = "*"  # Fallback
-            
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-        response.headers["Access-Control-Allow-Headers"] = "*"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Max-Age"] = "86400"
-        
-        logger.info(f"OPTIONS request from origin: {origin}")
-        return response
-    
-    # Process normal requests
-    response = await call_next(request)
-    
-    # Add CORS headers to response
-    origin = request.headers.get("origin")
-    if origin:
-        allowed_origins = [
-            "https://my-climate-1txf.vercel.app",
-            "https://my-climate-1txf-git-main-njoro24s-projects.vercel.app", 
-            "https://my-climate-1txf-v3xwkbvop-njoro24s-projects.vercel.app",
-            "http://localhost:3000",
-            "http://localhost:5173"
-        ]
-        
-        if origin in allowed_origins or origin.endswith('.vercel.app'):
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-        
-    return response
-
-# CORS configuration - Specific origins with credentials
+# CORS configuration - SINGLE MIDDLEWARE ONLY
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -378,7 +327,7 @@ async def create_climate_report(report: ClimateReportCreate):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating climate report: {str(e)}")
 
-@app.get("/api/climate/reports/{location", response_model=List[ClimateReportResponse], tags=["climate"])
+@app.get("/api/climate/reports/{location}", response_model=List[ClimateReportResponse], tags=["climate"])
 async def get_climate_reports(location: str, limit: int = 10):
     """Get recent climate reports for a location"""
     reports = await climate_service.get_recent_reports(location, limit)
