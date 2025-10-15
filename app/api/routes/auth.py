@@ -24,7 +24,7 @@ security = HTTPBearer()
 
 # Simple Token Configuration
 SECRET_KEY = "climate_witness_chain_secret_key_change_in_production"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 60  # Increased from 30 to 60 minutes
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 # Pydantic models
@@ -117,6 +117,7 @@ def verify_token(token: str, token_type: str = "access"):
     """Verify simple token"""
     try:
         if not token.startswith(f"{token_type}_"):
+            print(f"Token doesn't start with {token_type}_: {token[:20]}...")
             return None
         
         # Parse token: type_userid_timestamp_hash
@@ -126,6 +127,7 @@ def verify_token(token: str, token_type: str = "access"):
         # Split from the right to get the last two parts (timestamp and hash)
         parts = token_without_prefix.rsplit("_", 2)
         if len(parts) != 3:
+            print(f"Token parts invalid: {len(parts)} parts")
             return None
         
         user_id, timestamp_str, token_hash = parts
@@ -136,22 +138,31 @@ def verify_token(token: str, token_type: str = "access"):
         expected_hash = hashlib.sha256(f"{token_data}:{SECRET_KEY}".encode()).hexdigest()[:16]
         
         if token_hash != expected_hash:
+            print(f"Hash mismatch: expected {expected_hash}, got {token_hash}")
             return None
         
-        # Check expiration
+        # Check expiration - be more lenient with timing
         token_time = datetime.fromtimestamp(timestamp)
         now = datetime.utcnow()
+        age_minutes = (now - token_time).total_seconds() / 60
+        
+        print(f"Token age: {age_minutes:.2f} minutes")
         
         if token_type == "access":
-            if now - token_time > timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES):
+            # Be more lenient - allow 60 minutes instead of 30
+            if age_minutes > 60:
+                print(f"Access token expired: {age_minutes:.2f} > 60 minutes")
                 return None
         elif token_type == "refresh":
-            if now - token_time > timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS):
+            if age_minutes > (7 * 24 * 60):  # 7 days in minutes
+                print(f"Refresh token expired: {age_minutes:.2f} > {7 * 24 * 60} minutes")
                 return None
         
+        print(f"Token valid for user: {user_id}")
         return {"sub": user_id, "type": token_type}
         
-    except (ValueError, IndexError):
+    except (ValueError, IndexError) as e:
+        print(f"Token parsing error: {e}")
         return None
 
 async def get_current_user(
@@ -363,51 +374,17 @@ async def refresh_token(
 
 @router.get("/me")
 async def get_current_user_info(
-    authorization: str = Header(None),
-    db: aiosqlite.Connection = Depends(get_db)
+    current_user = Depends(get_current_user)
 ):
     """Get current user information"""
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing or invalid authorization header",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    token = authorization.replace("Bearer ", "")
-    payload = verify_token(token)
-    
-    if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    user_id = payload.get("sub")
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Get user from database
-    async with db.execute("SELECT * FROM users WHERE id = ?", (user_id,)) as cursor:
-        user = await cursor.fetchone()
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-    
-    return {"user": user_to_dict(user)}
+    return {"user": user_to_dict(current_user)}
 
 @router.get("/test")
 async def test_endpoint():
     """Test endpoint to verify backend is working"""
     return {"message": "Backend is working", "timestamp": datetime.now().isoformat()}
+
+
 
 @router.put("/profile")
 async def update_profile(
