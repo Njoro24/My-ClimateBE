@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv('.env.railway')  # Load Railway-specific config first
 load_dotenv()  # Then load default .env as fallback
 
-# Force set CORS origins for Railway deployment - Allow all Vercel deployments
+# Force set CORS origins for Railway deployment - Allow all origins for Vercel deployments
 if not os.getenv('CORS_ORIGINS'):
     os.environ['CORS_ORIGINS'] = '*'
 
