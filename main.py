@@ -58,37 +58,19 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Manual CORS handler for all requests - AGGRESSIVE APPROACH
-@app.middleware("http")
-async def add_cors_headers(request: Request, call_next):
-    # Handle preflight OPTIONS requests immediately
-    if request.method == "OPTIONS":
-        from fastapi import Response
-        response = Response()
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
-        response.headers["Access-Control-Allow-Headers"] = "*"
-        response.headers["Access-Control-Max-Age"] = "86400"
-        response.headers["Access-Control-Allow-Credentials"] = "false"
-        return response
-    
-    # Process normal requests and add CORS headers
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Expose-Headers"] = "*"
-    response.headers["Access-Control-Allow-Credentials"] = "false"
-    return response
-
-# CORS configuration - Allow all origins to fix deployment issues
+# CORS configuration - Specific origins with credentials
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for now
-    allow_credentials=False,  # Must be False when allow_origins=["*"]
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_origins=[
+        "https://my-climate-1txf.vercel.app",
+        "https://my-climate-1txf-git-main-njoro24s-projects.vercel.app", 
+        "https://my-climate-1txf-v3xwkbvop-njoro24s-projects.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"]
 )
 
 # Payment models
