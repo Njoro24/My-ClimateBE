@@ -16,7 +16,7 @@ load_dotenv()  # Then load default .env as fallback
 
 # Force set CORS origins for Railway deployment
 if not os.getenv('CORS_ORIGINS'):
-    os.environ['CORS_ORIGINS'] = 'https://my-climate-1txf.vercel.app,https://my-climate-six.vercel.app,http://localhost:5173,http://localhost:3000'
+    os.environ['CORS_ORIGINS'] = 'https://my-climate-jet.vercel.app,https://my-climate-fvysettlh-njoro24s-projects.vercel.app,https://my-climate-1txf.vercel.app,https://my-climate-six.vercel.app,http://localhost:5173,http://localhost:3000'
 
 # Create FastAPI app
 app = FastAPI(
