@@ -202,35 +202,69 @@ async def allocate_climate_resources(
     crud = Depends(get_db)
 ):
     """
-    Optimize resource allocation based on verified climate impacts and community needs
+    Optimize resource allocation based on real verified climate impacts and community needs
     """
     try:
-        kb = get_shared_knowledge_base()
-        kb.load_metta_file("BECW/metta/civic_decision_making.metta")
+        # Connect to database for real impact data
+        db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'climate_witness.db')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
         
-        # Identify priority areas based on verified impacts
-        priority_areas = _identify_priority_areas(request.verified_impacts)
+        # Get real verified climate impacts by location
+        cursor.execute("""
+            SELECT location, event_type, COUNT(*) as event_count, 
+                   AVG(COALESCE(economic_impact, 0)) as avg_impact,
+                   MAX(timestamp) as latest_event
+            FROM events 
+            WHERE verification_status = 'verified' 
+            AND timestamp > datetime('now', '-90 days')
+            AND location IS NOT NULL
+            GROUP BY location, event_type
+            ORDER BY event_count DESC, avg_impact DESC
+        """)
         
-        # Assess need severity
-        need_severity = _assess_community_needs(request.community_needs, request.verified_impacts)
+        real_impacts = cursor.fetchall()
+        
+        # Convert to structured data
+        location_impacts = defaultdict(lambda: {"total_events": 0, "total_impact": 0, "event_types": []})
+        
+        for location, event_type, count, avg_impact, latest in real_impacts:
+            location_impacts[location]["total_events"] += count
+            location_impacts[location]["total_impact"] += avg_impact or 0
+            location_impacts[location]["event_types"].append({
+                "type": event_type,
+                "count": count,
+                "avg_impact": avg_impact or 0,
+                "latest": latest
+            })
+        
+        conn.close()
+        
+        # Identify priority areas based on real data
+        priority_areas = _identify_priority_areas_real(location_impacts, request.verified_impacts)
+        
+        # Assess need severity using real and requested data
+        need_severity = _assess_community_needs_real(request.community_needs, location_impacts)
         
         # Calculate resource efficiency
-        resource_efficiency = _calculate_resource_efficiency(request.available_resources, priority_areas)
+        resource_efficiency = _calculate_resource_efficiency_real(request.available_resources, priority_areas)
         
         # Assess equity considerations
-        equity_considerations = _assess_allocation_equity(request.community_needs, request.available_resources)
+        equity_considerations = _assess_allocation_equity_real(request.community_needs, location_impacts)
         
         # Optimize resource distribution
-        optimal_allocation = _optimize_resource_distribution(
+        optimal_allocation = _optimize_resource_distribution_real(
             request.available_resources, priority_areas, need_severity, equity_considerations
         )
         
-        # Run MeTTa resource allocation
+        # Load MeTTa for additional reasoning
+        kb = get_shared_knowledge_base()
+        kb.load_metta_file("BECW/metta/civic_decision_making.metta")
+        
         allocation_query = f"""
         !(allocate-climate-resources {json.dumps(request.available_resources)} 
           {json.dumps(request.community_needs)} {json.dumps(request.verified_impacts)})
         """
-        
         metta_results = kb.run_query(allocation_query)
         
         return {
@@ -246,18 +280,25 @@ async def allocate_climate_resources(
                 "medium_priority_areas": priority_areas["medium"],
                 "low_priority_areas": priority_areas["low"]
             },
+            "real_data_analysis": {
+                "locations_analyzed": len(location_impacts),
+                "total_verified_events": sum(data["total_events"] for data in location_impacts.values()),
+                "total_economic_impact": sum(data["total_impact"] for data in location_impacts.values())
+            },
             "need_assessment": need_severity,
             "explanation": {
-                "methodology": "Multi-criteria optimization considering impact severity, community needs, and equity",
-                "allocation_principles": ["Greatest need first", "Equitable distribution", "Maximum impact efficiency"],
-                "transparency": "All allocation decisions explained and auditable"
+                "methodology": "Multi-criteria optimization using real verified climate data, community needs, and equity principles",
+                "allocation_principles": ["Evidence-based prioritization", "Equitable distribution", "Maximum impact efficiency"],
+                "data_sources": "Verified climate events from Climate Witness database",
+                "transparency": "All allocation decisions based on verifiable data and explained reasoning"
             },
-            "implementation_plan": _generate_allocation_implementation_plan(optimal_allocation),
-            "monitoring_metrics": _define_allocation_monitoring_metrics(optimal_allocation),
+            "implementation_plan": _generate_allocation_implementation_plan_real(optimal_allocation, priority_areas),
+            "monitoring_metrics": _define_allocation_monitoring_metrics_real(optimal_allocation),
             "timestamp": datetime.utcnow().isoformat()
         }
         
     except Exception as e:
+        logger.error(f"Resource allocation error: {e}")
         raise HTTPException(status_code=500, detail=f"Resource allocation failed: {str(e)}")
 
 @router.post("/build-consensus")
@@ -764,33 +805,267 @@ def _generate_implementation_timeline(policy, timeframe):
     """Generate implementation timeline"""
     return {"phase_1": "6 months", "phase_2": "18 months", "full_implementation": timeframe}
 
-def _identify_priority_areas(impacts):
-    """Identify priority areas from impacts"""
-    return {"high": ["Area A", "Area B"], "medium": ["Area C"], "low": ["Area D"]}
+def _identify_priority_areas_real(location_impacts, verified_impacts):
+    """Identify priority areas based on real verified impacts"""
+    high_priority = []
+    medium_priority = []
+    low_priority = []
+    
+    # Sort locations by impact severity
+    sorted_locations = sorted(
+        location_impacts.items(),
+        key=lambda x: (x[1]["total_events"], x[1]["total_impact"]),
+        reverse=True
+    )
+    
+    total_locations = len(sorted_locations)
+    
+    for i, (location, data) in enumerate(sorted_locations):
+        priority_info = {
+            "location": location,
+            "total_events": data["total_events"],
+            "total_impact": data["total_impact"],
+            "event_types": [et["type"] for et in data["event_types"]],
+            "urgency_score": data["total_events"] * 0.6 + (data["total_impact"] / 1000) * 0.4
+        }
+        
+        # Top 30% are high priority
+        if i < total_locations * 0.3:
+            high_priority.append(priority_info)
+        # Next 40% are medium priority
+        elif i < total_locations * 0.7:
+            medium_priority.append(priority_info)
+        # Rest are low priority
+        else:
+            low_priority.append(priority_info)
+    
+    # Also include areas from verified_impacts parameter
+    for impact in verified_impacts:
+        location = impact.get("location")
+        if location and not any(area["location"] == location for area in high_priority + medium_priority + low_priority):
+            impact_value = impact.get("impact_value", 0)
+            if impact_value > 100000:  # High impact threshold
+                high_priority.append({
+                    "location": location,
+                    "total_events": 1,
+                    "total_impact": impact_value,
+                    "event_types": [impact.get("event_type", "unknown")],
+                    "urgency_score": impact_value / 1000
+                })
+    
+    return {
+        "high": high_priority,
+        "medium": medium_priority,
+        "low": low_priority
+    }
 
-def _assess_community_needs(needs, impacts):
-    """Assess severity of community needs"""
-    return {"urgent": 3, "high": 5, "medium": 2, "low": 1}
+def _assess_community_needs_real(community_needs, location_impacts):
+    """Assess community needs using real data and requests"""
+    need_assessment = {}
+    
+    for need in community_needs:
+        location = need.get("location")
+        priority = need.get("priority", "medium")
+        need_type = need.get("type", "general")
+        
+        # Get real impact data for this location
+        real_data = location_impacts.get(location, {"total_events": 0, "total_impact": 0})
+        
+        # Calculate need severity score
+        severity_score = 0.5  # Base score
+        
+        # Adjust based on priority
+        if priority == "high":
+            severity_score += 0.3
+        elif priority == "low":
+            severity_score -= 0.2
+        
+        # Adjust based on real impact data
+        if real_data["total_events"] > 5:
+            severity_score += 0.2
+        if real_data["total_impact"] > 50000:
+            severity_score += 0.2
+        
+        # Adjust based on need type
+        urgent_types = ["drought_relief", "flood_protection", "emergency_response"]
+        if need_type in urgent_types:
+            severity_score += 0.1
+        
+        need_assessment[location] = {
+            "severity_score": min(1.0, severity_score),
+            "priority": priority,
+            "type": need_type,
+            "real_events": real_data["total_events"],
+            "real_impact": real_data["total_impact"],
+            "justification": f"Based on {real_data['total_events']} verified events and ${real_data['total_impact']:.0f} economic impact"
+        }
+    
+    return need_assessment
 
-def _calculate_resource_efficiency(resources, priorities):
-    """Calculate resource allocation efficiency"""
-    return 0.85
+def _calculate_resource_efficiency_real(available_resources, priority_areas):
+    """Calculate resource efficiency based on real priority data"""
+    total_funding = available_resources.get("funding", 0)
+    total_personnel = available_resources.get("personnel", 0)
+    total_equipment = available_resources.get("equipment", 0)
+    
+    high_priority_count = len(priority_areas["high"])
+    total_priority_areas = len(priority_areas["high"]) + len(priority_areas["medium"]) + len(priority_areas["low"])
+    
+    if total_priority_areas == 0:
+        return 0.5
+    
+    # Calculate efficiency based on resource adequacy
+    funding_per_area = total_funding / max(total_priority_areas, 1)
+    personnel_per_area = total_personnel / max(total_priority_areas, 1)
+    
+    efficiency = 0.3  # Base efficiency
+    
+    # Higher efficiency if we can adequately fund high priority areas
+    if funding_per_area > 50000:  # Adequate funding threshold
+        efficiency += 0.3
+    if personnel_per_area > 2:  # Adequate personnel threshold
+        efficiency += 0.2
+    if high_priority_count > 0 and total_funding > 200000:  # Can address high priority
+        efficiency += 0.2
+    
+    return min(1.0, efficiency)
 
-def _assess_allocation_equity(needs, resources):
-    """Assess equity of resource allocation"""
-    return {"equity_score": 0.8, "gini_coefficient": 0.3}
+def _assess_allocation_equity_real(community_needs, location_impacts):
+    """Assess equity considerations using real data"""
+    total_locations = len(location_impacts)
+    
+    if total_locations == 0:
+        return {"equity_score": 0.5, "analysis": "No location data available"}
+    
+    # Calculate impact distribution
+    impacts = [data["total_impact"] for data in location_impacts.values()]
+    events = [data["total_events"] for data in location_impacts.values()]
+    
+    # Calculate inequality (simplified Gini coefficient approach)
+    if len(impacts) > 1:
+        sorted_impacts = sorted(impacts)
+        n = len(sorted_impacts)
+        cumulative_sum = sum((i + 1) * impact for i, impact in enumerate(sorted_impacts))
+        total_sum = sum(sorted_impacts)
+        
+        if total_sum > 0:
+            gini = (2 * cumulative_sum) / (n * total_sum) - (n + 1) / n
+            equity_score = 1 - gini  # Higher score = more equitable
+        else:
+            equity_score = 1.0
+    else:
+        equity_score = 1.0
+    
+    return {
+        "equity_score": max(0.0, min(1.0, equity_score)),
+        "analysis": f"Analyzed {total_locations} locations for impact distribution",
+        "impact_range": f"${min(impacts):.0f} - ${max(impacts):.0f}" if impacts else "No impact data",
+        "recommendations": ["Prioritize underserved areas", "Ensure proportional resource distribution"]
+    }
 
-def _optimize_resource_distribution(resources, priorities, needs, equity):
-    """Optimize resource distribution"""
-    return {"coverage": 85.0, "efficiency": 0.9, "equity": 0.8}
+def _optimize_resource_distribution_real(available_resources, priority_areas, need_severity, equity_considerations):
+    """Optimize resource distribution using real data and constraints"""
+    total_funding = available_resources.get("funding", 0)
+    total_personnel = available_resources.get("personnel", 0)
+    total_equipment = available_resources.get("equipment", 0)
+    
+    distribution = {
+        "funding_allocation": {},
+        "personnel_allocation": {},
+        "equipment_allocation": {},
+        "coverage": 0,
+        "rationale": []
+    }
+    
+    # Prioritize high-priority areas
+    high_priority = priority_areas["high"]
+    medium_priority = priority_areas["medium"]
+    low_priority = priority_areas["low"]
+    
+    total_areas = len(high_priority) + len(medium_priority) + len(low_priority)
+    
+    if total_areas == 0:
+        distribution["coverage"] = 0
+        distribution["rationale"].append("No priority areas identified")
+        return distribution
+    
+    # Allocate 60% to high priority, 30% to medium, 10% to low
+    high_funding = total_funding * 0.6
+    medium_funding = total_funding * 0.3
+    low_funding = total_funding * 0.1
+    
+    high_personnel = int(total_personnel * 0.6)
+    medium_personnel = int(total_personnel * 0.3)
+    low_personnel = int(total_personnel * 0.1)
+    
+    high_equipment = int(total_equipment * 0.6)
+    medium_equipment = int(total_equipment * 0.3)
+    low_equipment = int(total_equipment * 0.1)
+    
+    # Distribute among areas in each priority level
+    def distribute_resources(areas, funding, personnel, equipment, priority_level):
+        if not areas:
+            return
+        
+        funding_per_area = funding / len(areas)
+        personnel_per_area = max(1, personnel // len(areas))
+        equipment_per_area = max(1, equipment // len(areas))
+        
+        for area in areas:
+            location = area["location"]
+            distribution["funding_allocation"][location] = funding_per_area
+            distribution["personnel_allocation"][location] = personnel_per_area
+            distribution["equipment_allocation"][location] = equipment_per_area
+        
+        distribution["rationale"].append(
+            f"Allocated ${funding_per_area:.0f}, {personnel_per_area} personnel, "
+            f"{equipment_per_area} equipment per {priority_level} priority area"
+        )
+    
+    distribute_resources(high_priority, high_funding, high_personnel, high_equipment, "high")
+    distribute_resources(medium_priority, medium_funding, medium_personnel, medium_equipment, "medium")
+    distribute_resources(low_priority, low_funding, low_personnel, low_equipment, "low")
+    
+    # Calculate coverage
+    covered_areas = len(distribution["funding_allocation"])
+    distribution["coverage"] = (covered_areas / total_areas) * 100 if total_areas > 0 else 0
+    
+    distribution["rationale"].append(f"Achieved {distribution['coverage']:.1f}% area coverage")
+    
+    return distribution
 
-def _generate_allocation_implementation_plan(allocation):
-    """Generate implementation plan for allocation"""
-    return {"timeline": "12 months", "phases": 3, "monitoring": "monthly"}
+def _generate_allocation_implementation_plan_real(optimal_allocation, priority_areas):
+    """Generate implementation plan based on real allocation"""
+    high_priority_count = len(priority_areas["high"])
+    
+    if high_priority_count > 5:
+        timeline = "12 months"
+        phases = "4 phases"
+    elif high_priority_count > 2:
+        timeline = "8 months"
+        phases = "3 phases"
+    else:
+        timeline = "6 months"
+        phases = "2 phases"
+    
+    return {
+        "timeline": timeline,
+        "phases": phases,
+        "monitoring": "Monthly progress reviews",
+        "first_phase": "Deploy to highest priority areas within 30 days",
+        "success_metrics": ["Coverage percentage", "Impact reduction", "Community satisfaction"]
+    }
 
-def _define_allocation_monitoring_metrics(allocation):
-    """Define monitoring metrics for allocation"""
-    return ["coverage_rate", "impact_effectiveness", "equity_index"]
+def _define_allocation_monitoring_metrics_real(optimal_allocation):
+    """Define monitoring metrics for real allocation"""
+    return {
+        "coverage_metrics": ["Areas served", "Population reached", "Resources deployed"],
+        "impact_metrics": ["Events prevented", "Economic losses avoided", "Community resilience"],
+        "efficiency_metrics": ["Cost per area served", "Personnel utilization", "Equipment deployment rate"],
+        "equity_metrics": ["Distribution fairness", "Underserved area coverage", "Access equality"],
+        "reporting_frequency": "Monthly",
+        "review_cycle": "Quarterly"
+    }
 
 async def _find_similar_climate_cases(climate_challenge, location, crud):
     """Find similar climate cases using real event database"""

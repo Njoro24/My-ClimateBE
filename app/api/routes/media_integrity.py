@@ -115,41 +115,52 @@ async def verify_news_article(
     crud = Depends(get_db)
 ):
     """
-    Verify news articles using decentralized fact-checking and source validation
+    Verify news articles using real fact-checking against climate database and source validation
     """
     try:
         kb = get_shared_knowledge_base()
         kb.load_metta_file("BECW/metta/media_integrity.metta")
         
-        # Verify individual claims
+        # Connect to database for real fact-checking
+        db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'climate_witness.db')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Verify individual claims against real data
         claim_verifications = []
         for claim in request.claims:
-            claim_verification = await _verify_individual_claim(claim, kb, crud)
+            claim_verification = await _verify_individual_claim_real(claim, kb, cursor)
             claim_verifications.append(claim_verification)
         
-        # Validate news sources
+        # Validate news sources with real checks
         source_validations = []
         for source in request.sources:
-            source_validation = _validate_news_source(source)
+            source_validation = _validate_news_source_real(source)
             source_validations.append(source_validation)
         
-        # Calculate consensus score
-        consensus_score = sum([cv["credibility"] for cv in claim_verifications]) / len(claim_verifications) if claim_verifications else 0
+        # Analyze content for misinformation patterns
+        content_analysis = _analyze_content_patterns(request.content)
+        
+        # Calculate consensus score based on real verification
+        verified_claims = [cv for cv in claim_verifications if cv["credibility"] > 0.7]
+        consensus_score = len(verified_claims) / len(claim_verifications) if claim_verifications else 0
         
         # Calculate source reliability
-        source_reliability = sum([sv["reliability"] for sv in source_validations]) / len(source_validations) if source_validations else 0
+        reliable_sources = [sv for sv in source_validations if sv["reliability"] > 0.7]
+        source_reliability = len(reliable_sources) / len(source_validations) if source_validations else 0
         
-        # Get network trust score (simplified)
-        network_trust = 0.75  # Would be calculated from decentralized network
+        # Calculate network trust based on content analysis
+        network_trust = max(0, 1.0 - (content_analysis["misinformation_indicators"] * 0.2))
         
-        # Combine scores
-        final_credibility = (consensus_score * 0.5 + source_reliability * 0.3 + network_trust * 0.2)
+        # Combine scores with weights
+        final_credibility = (consensus_score * 0.4 + source_reliability * 0.3 + network_trust * 0.3)
         
-        # Run MeTTa news verification
+        conn.close()
+        
+        # Run MeTTa news verification for additional insights
         news_query = f"""
         !(decentralized-news-verification "{request.article_id}" {json.dumps(request.claims)} {json.dumps(request.sources)})
         """
-        
         metta_results = kb.run_query(news_query)
         
         return {
@@ -158,25 +169,96 @@ async def verify_news_article(
             "verification_result": {
                 "credibility_score": round(final_credibility, 3),
                 "credibility_level": "high" if final_credibility > 0.8 else "medium" if final_credibility > 0.6 else "low",
-                "verified_claims": len([cv for cv in claim_verifications if cv["credibility"] > 0.7]),
-                "total_claims": len(claim_verifications)
+                "verified_claims": len(verified_claims),
+                "total_claims": len(claim_verifications),
+                "content_quality": content_analysis["quality_score"]
             },
             "claim_analysis": claim_verifications,
             "source_analysis": source_validations,
+            "content_analysis": content_analysis,
             "decentralized_consensus": {
                 "consensus_score": round(consensus_score, 3),
                 "source_reliability": round(source_reliability, 3),
                 "network_trust": round(network_trust, 3)
             },
             "explanation": {
-                "methodology": "Decentralized verification combining claim fact-checking, source validation, and network consensus",
-                "verification_process": "Each claim independently verified against known facts and expert consensus"
+                "methodology": "Real-time verification against climate database, source validation, and content analysis",
+                "verification_process": "Claims checked against verified climate events and scientific consensus",
+                "data_sources": "Climate Witness database, source credibility database, content pattern analysis"
             },
+            "recommendations": _generate_news_recommendations(final_credibility, content_analysis),
             "timestamp": datetime.utcnow().isoformat()
         }
         
     except Exception as e:
+        logger.error(f"News verification error: {e}")
         raise HTTPException(status_code=500, detail=f"News verification failed: {str(e)}")
+
+def _analyze_content_patterns(content):
+    """Analyze content for misinformation patterns and quality indicators"""
+    if not content:
+        return {"quality_score": 0.0, "misinformation_indicators": 5}
+    
+    content_lower = content.lower()
+    
+    # Misinformation indicators
+    misinformation_keywords = [
+        "hoax", "fake", "conspiracy", "lie", "scam", "never happened",
+        "government cover-up", "artificial", "man-made disaster", "weather weapon"
+    ]
+    
+    # Quality indicators
+    quality_keywords = [
+        "according to", "research shows", "data indicates", "scientists say",
+        "study found", "evidence suggests", "verified", "confirmed"
+    ]
+    
+    # Sensationalism indicators
+    sensational_keywords = [
+        "shocking", "unbelievable", "incredible", "amazing", "you won't believe",
+        "scientists hate this", "secret", "hidden truth"
+    ]
+    
+    misinformation_count = sum(1 for keyword in misinformation_keywords if keyword in content_lower)
+    quality_count = sum(1 for keyword in quality_keywords if keyword in content_lower)
+    sensational_count = sum(1 for keyword in sensational_keywords if keyword in content_lower)
+    
+    # Calculate quality score
+    quality_score = min(1.0, quality_count * 0.2)  # Max 1.0
+    quality_score -= sensational_count * 0.1  # Penalty for sensationalism
+    quality_score -= misinformation_count * 0.2  # Penalty for misinformation keywords
+    quality_score = max(0.0, quality_score)
+    
+    return {
+        "quality_score": round(quality_score, 2),
+        "misinformation_indicators": misinformation_count,
+        "quality_indicators": quality_count,
+        "sensationalism_indicators": sensational_count,
+        "word_count": len(content.split()),
+        "has_sources": "source:" in content_lower or "according to" in content_lower
+    }
+
+def _generate_news_recommendations(credibility, content_analysis):
+    """Generate recommendations based on news verification results"""
+    recommendations = []
+    
+    if credibility > 0.8:
+        recommendations.append("High credibility - safe to share and reference")
+    elif credibility > 0.6:
+        recommendations.append("Medium credibility - verify with additional sources before sharing")
+    else:
+        recommendations.append("Low credibility - exercise caution, seek additional verification")
+    
+    if content_analysis["misinformation_indicators"] > 2:
+        recommendations.append("Contains potential misinformation keywords - fact-check carefully")
+    
+    if content_analysis["quality_indicators"] < 2:
+        recommendations.append("Limited quality indicators - look for more authoritative sources")
+    
+    if not content_analysis["has_sources"]:
+        recommendations.append("No clear sources cited - verify claims independently")
+    
+    return recommendations
 
 @router.post("/detect-misinformation")
 async def detect_misinformation(
@@ -427,19 +509,22 @@ async def upload_media_for_verification(
     crud = Depends(get_db)
 ):
     """
-    Upload media file for integrity verification with real metadata extraction
+    Upload media file for integrity verification with real metadata extraction and analysis
     """
     try:
         # Create uploads directory if it doesn't exist
-        os.makedirs("uploads/media_verification", exist_ok=True)
+        upload_dir = "uploads/media_verification"
+        os.makedirs(upload_dir, exist_ok=True)
         
         # Generate unique filename
-        file_hash = hashlib.sha256(f"{file.filename}_{datetime.utcnow().isoformat()}".encode()).hexdigest()[:16]
-        file_path = f"uploads/media_verification/{file_hash}_{file.filename}"
+        timestamp = datetime.utcnow().isoformat().replace(":", "-")
+        file_hash = hashlib.sha256(f"{file.filename}_{timestamp}".encode()).hexdigest()[:16]
+        file_extension = os.path.splitext(file.filename)[1]
+        file_path = os.path.join(upload_dir, f"{file_hash}_{timestamp}{file_extension}")
         
         # Save file
+        content = await file.read()
         with open(file_path, "wb") as buffer:
-            content = await file.read()
             buffer.write(content)
         
         # Extract real metadata
@@ -456,20 +541,25 @@ async def upload_media_for_verification(
         }
         
         # Cross-check GPS coordinates with known climate events if available
-        if "GPS" in metadata:
+        nearby_events = []
+        if "GPS" in metadata and len(metadata["GPS"]) == 2:
             lat, lon = metadata["GPS"]
-            nearby_events = await _find_nearby_climate_events(lat, lon, radius_km=50)
-            metadata["nearby_climate_events"] = nearby_events
+            if lat != 0 and lon != 0:  # Valid coordinates
+                nearby_events = await _find_nearby_climate_events(lat, lon, radius_km=50)
+                metadata["nearby_climate_events"] = nearby_events
         
-        # Perform verification
+        # Perform comprehensive verification
         verification_request = MediaVerificationRequest(
             media_type=media_type,
             source=source,
             metadata=metadata
         )
         
-        # Use the existing verification endpoint
+        # Get verification result
         verification_result = await verify_media_authenticity(verification_request, crud)
+        
+        # Additional analysis for climate relevance
+        climate_relevance = _analyze_climate_relevance(metadata, nearby_events)
         
         return {
             "success": True,
@@ -481,18 +571,62 @@ async def upload_media_for_verification(
                 "real_metadata_extracted": len(real_metadata) > 0
             },
             "extracted_metadata": {
-                "has_gps": "GPS" in metadata,
+                "has_gps": "GPS" in metadata and metadata["GPS"][0] != 0,
                 "has_timestamp": "DateTime" in metadata,
                 "camera_info": f"{metadata.get('Make', 'Unknown')} {metadata.get('Model', '')}".strip(),
                 "image_dimensions": f"{metadata.get('ImageWidth', 0)}x{metadata.get('ImageHeight', 0)}",
-                "nearby_events": len(metadata.get("nearby_climate_events", []))
+                "nearby_events": len(nearby_events),
+                "gps_coordinates": metadata.get("GPS") if "GPS" in metadata else None
             },
+            "climate_analysis": climate_relevance,
             "verification_result": verification_result,
             "timestamp": datetime.utcnow().isoformat()
         }
         
     except Exception as e:
+        logger.error(f"Media upload error: {e}")
         raise HTTPException(status_code=500, detail=f"Media upload and verification failed: {str(e)}")
+
+def _analyze_climate_relevance(metadata, nearby_events):
+    """Analyze if the media is relevant to climate events"""
+    relevance_score = 0.0
+    indicators = []
+    
+    # Check for nearby climate events
+    if nearby_events:
+        relevance_score += 0.4
+        indicators.append(f"Found {len(nearby_events)} nearby climate events")
+    
+    # Check timestamp correlation with events
+    if metadata.get("DateTime") and nearby_events:
+        try:
+            photo_time = datetime.fromisoformat(metadata["DateTime"].replace(":", "-", 2))
+            for event in nearby_events:
+                event_time = datetime.fromisoformat(event["timestamp"])
+                time_diff = abs((photo_time - event_time).days)
+                if time_diff <= 7:  # Within a week
+                    relevance_score += 0.3
+                    indicators.append(f"Photo taken within {time_diff} days of climate event")
+                    break
+        except:
+            pass
+    
+    # Check GPS precision (higher precision suggests deliberate documentation)
+    if metadata.get("GPS"):
+        lat, lon = metadata["GPS"]
+        # Check decimal places (more precise = more likely to be deliberate)
+        lat_precision = len(str(lat).split('.')[-1]) if '.' in str(lat) else 0
+        lon_precision = len(str(lon).split('.')[-1]) if '.' in str(lon) else 0
+        if lat_precision >= 4 and lon_precision >= 4:
+            relevance_score += 0.2
+            indicators.append("High GPS precision suggests deliberate documentation")
+    
+    return {
+        "relevance_score": round(relevance_score, 2),
+        "is_climate_relevant": relevance_score >= 0.5,
+        "indicators": indicators,
+        "nearby_events_count": len(nearby_events)
+    }
 
 async def _find_nearby_climate_events(lat: float, lon: float, radius_km: int = 50) -> List[Dict]:
     """Find verified climate events near the given coordinates"""
@@ -670,26 +804,21 @@ def _generate_authenticity_recommendations(is_authentic, overall_score):
     else:
         return ["Media authenticity questionable", "Recommend additional verification", "Use with caution"]
 
-async def _verify_individual_claim(claim, kb, crud):
-    """Verify an individual claim against real climate data"""
+async def _verify_individual_claim_real(claim, kb, cursor):
+    """Verify an individual claim against real climate data in database"""
     try:
-        # Connect to database to check against verified climate events
-        db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'climate_witness.db')
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
         # Extract key terms from claim
         claim_lower = claim.lower()
         event_types = ["drought", "flood", "locust", "heatwave", "storm", "wildfire"]
-        locations = []
         detected_events = []
+        locations = []
         
-        # Simple keyword extraction
+        # Simple keyword extraction for event types
         for event_type in event_types:
             if event_type in claim_lower:
                 detected_events.append(event_type)
         
-        # Look for location mentions (simplified)
+        # Look for location mentions
         cursor.execute("SELECT DISTINCT location FROM events WHERE verification_status = 'verified'")
         known_locations = [row[0] for row in cursor.fetchall()]
         
@@ -697,9 +826,8 @@ async def _verify_individual_claim(claim, kb, crud):
             if location and location.lower() in claim_lower:
                 locations.append(location)
         
-        evidence_found = False
         supporting_events = []
-        contradicting_events = []
+        contradicting_evidence = []
         
         # Check for supporting or contradicting evidence
         if detected_events and locations:
@@ -714,22 +842,96 @@ async def _verify_individual_claim(claim, kb, crud):
                     """, (event_type, f"%{location}%"))
                     
                     events = cursor.fetchall()
-                    if events:
-                        evidence_found = True
-                        supporting_events.extend(events)
-        
-        # Calculate credibility based on evidence
-        if supporting_events:
-            credibility = 0.8 + (len(supporting_events) * 0.02)  # Higher with more supporting events
-        elif evidence_found:
-            credibility = 0.6
-        else:
-            # Check for contradictory patterns
-            credibility = 0.4  # Neutral when no evidence found
+                    supporting_events.extend(events)
         
         # Check for misinformation patterns
         misinformation_keywords = ["hoax", "fake", "conspiracy", "lie", "scam", "never happened"]
-        if any(keyword in claim_lower for keyword in misinformation_keywords):
+        misinformation_count = sum(1 for keyword in misinformation_keywords if keyword in claim_lower)
+        
+        # Calculate credibility based on evidence and patterns
+        if misinformation_count > 0:
+            credibility = max(0.1, 0.5 - (misinformation_count * 0.2))
+            contradicting_evidence.append(f"Contains {misinformation_count} misinformation indicators")
+        elif supporting_events:
+            credibility = min(0.95, 0.7 + (len(supporting_events) * 0.05))
+        elif detected_events or locations:
+            credibility = 0.6  # Neutral - mentions relevant topics but no verification
+        else:
+            credibility = 0.4  # Low relevance to climate topics
+        
+        return {
+            "claim": claim,
+            "credibility": round(credibility, 3),
+            "supporting_events": len(supporting_events),
+            "detected_topics": detected_events + locations,
+            "misinformation_indicators": misinformation_count,
+            "evidence_summary": f"Found {len(supporting_events)} supporting events" if supporting_events else "No supporting evidence found"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error verifying claim: {e}")
+        return {
+            "claim": claim,
+            "credibility": 0.3,
+            "error": str(e),
+            "supporting_events": 0,
+            "detected_topics": [],
+            "misinformation_indicators": 0
+        }
+
+def _validate_news_source_real(source):
+    """Validate news source with real credibility assessment"""
+    # Known credible sources (simplified - in reality would be a comprehensive database)
+    credible_sources = [
+        "bbc", "reuters", "ap news", "associated press", "cnn", "guardian", 
+        "washington post", "new york times", "npr", "pbs", "nature", "science",
+        "ipcc", "noaa", "nasa", "who", "un", "world bank"
+    ]
+    
+    # Known unreliable sources
+    unreliable_sources = [
+        "infowars", "breitbart", "naturalnews", "globalresearch", "beforeitsnews"
+    ]
+    
+    source_lower = source.lower()
+    
+    # Check against known sources
+    if any(credible in source_lower for credible in credible_sources):
+        reliability = 0.9
+        assessment = "Known credible source"
+    elif any(unreliable in source_lower for unreliable in unreliable_sources):
+        reliability = 0.2
+        assessment = "Known unreliable source"
+    elif source_lower.endswith(('.gov', '.edu', '.org')):
+        reliability = 0.8
+        assessment = "Government, educational, or organization domain"
+    elif source_lower.startswith('http'):
+        reliability = 0.6
+        assessment = "Web source - credibility unknown"
+    else:
+        reliability = 0.4
+        assessment = "Source format unclear"
+    
+    return {
+        "source": source,
+        "reliability": reliability,
+        "assessment": assessment,
+        "domain_type": _get_domain_type(source)
+    }
+
+def _get_domain_type(source):
+    """Get domain type for source analysis"""
+    source_lower = source.lower()
+    if '.gov' in source_lower:
+        return "government"
+    elif '.edu' in source_lower:
+        return "educational"
+    elif '.org' in source_lower:
+        return "organization"
+    elif '.com' in source_lower:
+        return "commercial"
+    else:
+        return "unknown"eywords):
             credibility = max(credibility - 0.3, 0.1)
         
         conn.close()
