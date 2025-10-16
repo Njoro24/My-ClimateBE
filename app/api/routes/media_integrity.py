@@ -1,6 +1,6 @@
 """
-Media Integrity & Decentralized News Verification API Routes
-Extends climate verification to general media and news integrity
+Enhanced Media Integrity & Decentralized News Verification API Routes
+Real data integration for climate misinformation detection and media verification
 """
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
@@ -10,8 +10,17 @@ from app.services.metta_service import get_shared_knowledge_base
 from app.database.database import get_db
 import json
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
+import requests
+from PIL import Image
+from PIL.ExifTags import TAGS
+import sqlite3
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -356,6 +365,60 @@ async def cross_platform_verification(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Cross-platform verification failed: {str(e)}")
 
+def _extract_real_metadata(file_path: str) -> Dict[str, Any]:
+    """Extract real EXIF metadata from image files"""
+    metadata = {}
+    
+    try:
+        if file_path.lower().endswith(('.jpg', '.jpeg', '.tiff', '.tif')):
+            with Image.open(file_path) as image:
+                # Get basic image info
+                metadata.update({
+                    "ImageWidth": image.width,
+                    "ImageHeight": image.height,
+                    "Format": image.format,
+                    "Mode": image.mode
+                })
+                
+                # Extract EXIF data
+                exif_data = image.getexif()
+                if exif_data:
+                    for tag_id, value in exif_data.items():
+                        tag = TAGS.get(tag_id, tag_id)
+                        metadata[tag] = value
+                
+                # Extract GPS data if available
+                if hasattr(image, '_getexif') and image._getexif():
+                    exif = image._getexif()
+                    if exif and 34853 in exif:  # GPS tag
+                        gps_data = exif[34853]
+                        if 2 in gps_data and 4 in gps_data:  # Latitude and Longitude
+                            lat = _convert_gps_to_decimal(gps_data[2], gps_data[1])
+                            lon = _convert_gps_to_decimal(gps_data[4], gps_data[3])
+                            metadata["GPS"] = [lat, lon]
+                
+    except Exception as e:
+        logger.warning(f"Could not extract EXIF data: {e}")
+        metadata["exif_error"] = str(e)
+    
+    return metadata
+
+def _convert_gps_to_decimal(coord, ref):
+    """Convert GPS coordinates from EXIF format to decimal degrees"""
+    try:
+        degrees = float(coord[0])
+        minutes = float(coord[1])
+        seconds = float(coord[2])
+        
+        decimal = degrees + (minutes / 60.0) + (seconds / 3600.0)
+        
+        if ref in ['S', 'W']:
+            decimal = -decimal
+            
+        return decimal
+    except:
+        return 0.0
+
 @router.post("/upload-media")
 async def upload_media_for_verification(
     file: UploadFile = File(...),
@@ -364,7 +427,7 @@ async def upload_media_for_verification(
     crud = Depends(get_db)
 ):
     """
-    Upload media file for integrity verification
+    Upload media file for integrity verification with real metadata extraction
     """
     try:
         # Create uploads directory if it doesn't exist
@@ -379,14 +442,24 @@ async def upload_media_for_verification(
             content = await file.read()
             buffer.write(content)
         
-        # Extract metadata
+        # Extract real metadata
+        real_metadata = _extract_real_metadata(file_path)
+        
+        # Combine with basic file info
         metadata = {
             "filename": file.filename,
             "size": len(content),
             "content_type": file.content_type,
             "upload_timestamp": datetime.utcnow().isoformat(),
-            "file_hash": hashlib.sha256(content).hexdigest()
+            "file_hash": hashlib.sha256(content).hexdigest(),
+            **real_metadata
         }
+        
+        # Cross-check GPS coordinates with known climate events if available
+        if "GPS" in metadata:
+            lat, lon = metadata["GPS"]
+            nearby_events = await _find_nearby_climate_events(lat, lon, radius_km=50)
+            metadata["nearby_climate_events"] = nearby_events
         
         # Perform verification
         verification_request = MediaVerificationRequest(
@@ -404,7 +477,15 @@ async def upload_media_for_verification(
                 "filename": file.filename,
                 "file_path": file_path,
                 "file_hash": metadata["file_hash"],
-                "size": metadata["size"]
+                "size": metadata["size"],
+                "real_metadata_extracted": len(real_metadata) > 0
+            },
+            "extracted_metadata": {
+                "has_gps": "GPS" in metadata,
+                "has_timestamp": "DateTime" in metadata,
+                "camera_info": f"{metadata.get('Make', 'Unknown')} {metadata.get('Model', '')}".strip(),
+                "image_dimensions": f"{metadata.get('ImageWidth', 0)}x{metadata.get('ImageHeight', 0)}",
+                "nearby_events": len(metadata.get("nearby_climate_events", []))
             },
             "verification_result": verification_result,
             "timestamp": datetime.utcnow().isoformat()
@@ -413,31 +494,147 @@ async def upload_media_for_verification(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Media upload and verification failed: {str(e)}")
 
+async def _find_nearby_climate_events(lat: float, lon: float, radius_km: int = 50) -> List[Dict]:
+    """Find verified climate events near the given coordinates"""
+    try:
+        db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'climate_witness.db')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Simple distance calculation (approximate)
+        # In a real implementation, you'd use proper geospatial queries
+        cursor.execute("""
+            SELECT id, event_type, location, latitude, longitude, timestamp, description
+            FROM events 
+            WHERE verification_status = 'verified' 
+            AND latitude IS NOT NULL 
+            AND longitude IS NOT NULL
+            AND timestamp > datetime('now', '-90 days')
+        """)
+        
+        events = cursor.fetchall()
+        nearby_events = []
+        
+        for event in events:
+            event_id, event_type, location, event_lat, event_lon, timestamp, description = event
+            
+            # Calculate approximate distance (simplified)
+            if event_lat and event_lon:
+                lat_diff = abs(lat - float(event_lat))
+                lon_diff = abs(lon - float(event_lon))
+                
+                # Rough distance calculation (1 degree ≈ 111 km)
+                distance_km = ((lat_diff ** 2 + lon_diff ** 2) ** 0.5) * 111
+                
+                if distance_km <= radius_km:
+                    nearby_events.append({
+                        "event_id": event_id,
+                        "event_type": event_type,
+                        "location": location,
+                        "distance_km": round(distance_km, 2),
+                        "timestamp": timestamp,
+                        "description": description[:100] + "..." if len(description) > 100 else description
+                    })
+        
+        conn.close()
+        return sorted(nearby_events, key=lambda x: x["distance_km"])[:5]  # Return 5 closest
+        
+    except Exception as e:
+        logger.error(f"Error finding nearby events: {e}")
+        return []
+
 # Helper functions
 def _analyze_metadata_integrity(metadata):
-    """Analyze metadata for integrity indicators"""
-    score = 0.5  # Base score
+    """Analyze metadata for integrity indicators using real EXIF data"""
+    score = 0.3  # Base score for having metadata
     
-    if "timestamp" in metadata:
+    # Check for essential EXIF data
+    if metadata.get("DateTime"):
         score += 0.2
-    if "location" in metadata:
-        score += 0.15
-    if "device_info" in metadata:
-        score += 0.15
+        # Verify timestamp is reasonable (not future, not too old)
+        try:
+            timestamp = datetime.fromisoformat(metadata["DateTime"].replace(":", "-", 2))
+            now = datetime.now()
+            if timestamp <= now and timestamp >= (now - timedelta(days=365)):
+                score += 0.1
+        except:
+            score -= 0.1
     
-    return min(score, 1.0)
+    if metadata.get("GPS"):
+        score += 0.2
+        # Verify GPS coordinates are valid
+        try:
+            lat, lon = metadata["GPS"]
+            if -90 <= lat <= 90 and -180 <= lon <= 180:
+                score += 0.1
+        except:
+            score -= 0.1
+    
+    if metadata.get("Make") and metadata.get("Model"):
+        score += 0.15
+        # Check if camera/phone model is known
+        known_devices = ["iPhone", "Samsung", "Canon", "Nikon", "Sony", "Huawei", "Xiaomi"]
+        if any(device in str(metadata.get("Make", "")) + str(metadata.get("Model", "")) for device in known_devices):
+            score += 0.05
+    
+    # Check for manipulation indicators
+    if metadata.get("Software"):
+        editing_software = ["Photoshop", "GIMP", "Lightroom", "Snapseed", "FaceApp"]
+        if any(software.lower() in str(metadata.get("Software", "")).lower() for software in editing_software):
+            score -= 0.2  # Penalty for editing software
+    
+    # Check image dimensions and quality
+    if metadata.get("ImageWidth") and metadata.get("ImageHeight"):
+        width, height = metadata.get("ImageWidth", 0), metadata.get("ImageHeight", 0)
+        if width * height > 1000000:  # > 1MP suggests real camera
+            score += 0.1
+    
+    return min(max(score, 0.0), 1.0)
 
 def _assess_source_credibility(source):
-    """Assess credibility of the source"""
-    # Simplified credibility assessment
-    credibility_map = {
-        "verified_journalist": 0.9,
-        "citizen_reporter": 0.7,
-        "official_source": 0.95,
-        "anonymous_source": 0.3,
-        "user_upload": 0.6
-    }
-    return credibility_map.get(source, 0.5)
+    """Assess credibility of the source using real user data"""
+    try:
+        # Connect to database to get real user trust scores
+        db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'climate_witness.db')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Try to find user by email or username
+        cursor.execute("SELECT trust_score, verification_count FROM users WHERE email = ? OR username = ?", (source, source))
+        user_data = cursor.fetchone()
+        
+        if user_data:
+            trust_score, verification_count = user_data
+            # Convert trust score (0-100) to credibility (0-1)
+            base_credibility = trust_score / 100.0
+            
+            # Boost credibility based on verification history
+            if verification_count > 10:
+                base_credibility += 0.1
+            elif verification_count > 5:
+                base_credibility += 0.05
+            
+            conn.close()
+            return min(base_credibility, 1.0)
+        
+        conn.close()
+        
+        # Fallback to source type assessment
+        credibility_map = {
+            "verified_journalist": 0.9,
+            "citizen_reporter": 0.7,
+            "official_source": 0.95,
+            "anonymous_source": 0.3,
+            "user_upload": 0.6,
+            "government_agency": 0.85,
+            "ngo_source": 0.75,
+            "academic_institution": 0.9
+        }
+        return credibility_map.get(source, 0.5)
+        
+    except Exception as e:
+        logger.error(f"Error assessing source credibility: {e}")
+        return 0.5
 
 def _technical_authenticity_check(media_type, metadata):
     """Perform technical authenticity checks"""
@@ -474,14 +671,88 @@ def _generate_authenticity_recommendations(is_authentic, overall_score):
         return ["Media authenticity questionable", "Recommend additional verification", "Use with caution"]
 
 async def _verify_individual_claim(claim, kb, crud):
-    """Verify an individual claim"""
-    # Simplified claim verification
-    return {
-        "claim": claim,
-        "credibility": 0.75,  # Would be calculated based on evidence
-        "evidence_found": True,
-        "sources": ["verified_data", "expert_consensus"]
-    }
+    """Verify an individual claim against real climate data"""
+    try:
+        # Connect to database to check against verified climate events
+        db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'climate_witness.db')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Extract key terms from claim
+        claim_lower = claim.lower()
+        event_types = ["drought", "flood", "locust", "heatwave", "storm", "wildfire"]
+        locations = []
+        detected_events = []
+        
+        # Simple keyword extraction
+        for event_type in event_types:
+            if event_type in claim_lower:
+                detected_events.append(event_type)
+        
+        # Look for location mentions (simplified)
+        cursor.execute("SELECT DISTINCT location FROM events WHERE verification_status = 'verified'")
+        known_locations = [row[0] for row in cursor.fetchall()]
+        
+        for location in known_locations:
+            if location and location.lower() in claim_lower:
+                locations.append(location)
+        
+        evidence_found = False
+        supporting_events = []
+        contradicting_events = []
+        
+        # Check for supporting or contradicting evidence
+        if detected_events and locations:
+            for event_type in detected_events:
+                for location in locations:
+                    # Look for verified events of this type in this location
+                    cursor.execute("""
+                        SELECT id, event_type, location, timestamp, description 
+                        FROM events 
+                        WHERE event_type = ? AND location LIKE ? AND verification_status = 'verified'
+                        ORDER BY timestamp DESC LIMIT 5
+                    """, (event_type, f"%{location}%"))
+                    
+                    events = cursor.fetchall()
+                    if events:
+                        evidence_found = True
+                        supporting_events.extend(events)
+        
+        # Calculate credibility based on evidence
+        if supporting_events:
+            credibility = 0.8 + (len(supporting_events) * 0.02)  # Higher with more supporting events
+        elif evidence_found:
+            credibility = 0.6
+        else:
+            # Check for contradictory patterns
+            credibility = 0.4  # Neutral when no evidence found
+        
+        # Check for misinformation patterns
+        misinformation_keywords = ["hoax", "fake", "conspiracy", "lie", "scam", "never happened"]
+        if any(keyword in claim_lower for keyword in misinformation_keywords):
+            credibility = max(credibility - 0.3, 0.1)
+        
+        conn.close()
+        
+        return {
+            "claim": claim,
+            "credibility": min(credibility, 1.0),
+            "evidence_found": evidence_found,
+            "supporting_events": len(supporting_events),
+            "detected_event_types": detected_events,
+            "detected_locations": locations,
+            "sources": ["verified_climate_events", "community_reports"] if evidence_found else ["no_evidence"]
+        }
+        
+    except Exception as e:
+        logger.error(f"Error verifying claim: {e}")
+        return {
+            "claim": claim,
+            "credibility": 0.5,
+            "evidence_found": False,
+            "error": str(e),
+            "sources": ["error"]
+        }
 
 def _validate_news_source(source):
     """Validate a news source"""
@@ -494,16 +765,102 @@ def _validate_news_source(source):
     }
 
 def _find_contradictory_evidence(claim, verified_events):
-    """Find evidence that contradicts the claim"""
-    # Simplified contradiction detection
+    """Find evidence that contradicts the claim using real event data"""
     contradictions = []
+    claim_lower = claim.lower()
     
-    # Check if claim contradicts verified events
-    for event in verified_events:
-        if "no climate change" in claim.lower() and event.event_type in ["drought", "flood"]:
-            contradictions.append(f"Contradicts verified {event.event_type} event in {event.location}")
-    
-    return contradictions
+    try:
+        # Connect to database for real verified events
+        db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'climate_witness.db')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Get recent verified events
+        cursor.execute("""
+            SELECT event_type, location, timestamp, description 
+            FROM events 
+            WHERE verification_status = 'verified' 
+            AND timestamp > datetime('now', '-30 days')
+            ORDER BY timestamp DESC
+        """)
+        
+        recent_events = cursor.fetchall()
+        
+        # Check for direct contradictions
+        denial_patterns = [
+            ("no climate change", ["drought", "flood", "heatwave", "storm"]),
+            ("climate change is fake", ["drought", "flood", "heatwave", "storm"]),
+            ("no drought", ["drought"]),
+            ("no flooding", ["flood"]),
+            ("weather is normal", ["drought", "flood", "heatwave", "storm"]),
+            ("no extreme weather", ["drought", "flood", "heatwave", "storm", "wildfire"])
+        ]
+        
+        for denial_phrase, contradicted_events in denial_patterns:
+            if denial_phrase in claim_lower:
+                for event_type, location, timestamp, description in recent_events:
+                    if event_type in contradicted_events:
+                        contradictions.append({
+                            "type": "direct_contradiction",
+                            "claim_phrase": denial_phrase,
+                            "contradicting_event": {
+                                "event_type": event_type,
+                                "location": location,
+                                "timestamp": timestamp,
+                                "description": description[:100] + "..." if len(description) > 100 else description
+                            },
+                            "explanation": f"Claim denies {denial_phrase} but verified {event_type} occurred in {location} on {timestamp}"
+                        })
+        
+        # Check for temporal contradictions
+        if "never happened" in claim_lower or "didn't happen" in claim_lower:
+            # Extract potential event references
+            event_types = ["drought", "flood", "locust", "heatwave", "storm", "wildfire"]
+            for event_type in event_types:
+                if event_type in claim_lower:
+                    matching_events = [e for e in recent_events if e[0] == event_type]
+                    if matching_events:
+                        contradictions.append({
+                            "type": "temporal_contradiction",
+                            "claim_phrase": f"claims {event_type} never happened",
+                            "contradicting_events": len(matching_events),
+                            "explanation": f"Found {len(matching_events)} verified {event_type} events in recent records"
+                        })
+        
+        # Check for scale contradictions
+        minimization_patterns = [
+            ("minor", "severe"),
+            ("small", "major"),
+            ("not serious", "critical"),
+            ("exaggerated", "verified")
+        ]
+        
+        for minimize_word, actual_severity in minimization_patterns:
+            if minimize_word in claim_lower:
+                # Look for events with high severity
+                cursor.execute("""
+                    SELECT event_type, location, description 
+                    FROM events 
+                    WHERE verification_status = 'verified' 
+                    AND (description LIKE '%severe%' OR description LIKE '%major%' OR description LIKE '%critical%')
+                    AND timestamp > datetime('now', '-30 days')
+                """)
+                
+                severe_events = cursor.fetchall()
+                if severe_events:
+                    contradictions.append({
+                        "type": "scale_contradiction",
+                        "claim_phrase": f"minimizes impact as '{minimize_word}'",
+                        "contradicting_evidence": f"{len(severe_events)} verified severe events",
+                        "explanation": f"Claim minimizes impact but {len(severe_events)} severe events documented"
+                    })
+        
+        conn.close()
+        return contradictions
+        
+    except Exception as e:
+        logger.error(f"Error finding contradictory evidence: {e}")
+        return []
 
 def _get_climate_consensus(claim):
     """Get scientific consensus on climate claim"""

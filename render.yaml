@@ -1,33 +1,15 @@
-# Climate Witness Chain - Render Configuration
 services:
   - type: web
-    name: climate-witness-backend
+    name: climate-witness-api
     env: python
-    buildCommand: "./render_build.sh"
-    startCommand: "python render_start.py"
-    plan: free
-    healthCheckPath: /health
+    buildCommand: cd BECW && pip install -r requirements.txt
+    startCommand: cd BECW && python start.py
     envVars:
-      - key: ENVIRONMENT
-        value: production
-      - key: DEBUG
-        value: false
-      - key: HOST
-        value: 0.0.0.0
       - key: PORT
-        fromService:
-          type: web
-          name: climate-witness-backend
-          property: port
-      - key: SECRET_KEY
-        generateValue: true
+        value: 8000
       - key: DATABASE_URL
         value: sqlite:///./climate_witness.db
-      - key: CORS_ORIGINS
-        value: https://your-frontend-domain.com
-      - key: PAYMENT_CURRENCY
-        value: KES
-      - key: MIN_PAYMENT_AMOUNT
-        value: 1.0
-      - key: MAX_PAYMENT_AMOUNT
-        value: 70000.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production

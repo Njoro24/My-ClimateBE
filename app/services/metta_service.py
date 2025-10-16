@@ -120,6 +120,28 @@ class ClimateWitnessKnowledgeBase:
         self.loaded_files = loaded_files
         logger.info(f"✅ MeTTa knowledge loaded from {len(loaded_files)} files: {', '.join(loaded_files)}")
     
+    def load_metta_file(self, filepath: str):
+        """Load a specific MeTTa file"""
+        try:
+            if os.path.exists(filepath):
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    self.metta.run(content)
+                logger.info(f"Loaded MeTTa file: {filepath}")
+            else:
+                logger.warning(f"MeTTa file not found: {filepath}")
+        except Exception as e:
+            logger.error(f"Error loading MeTTa file {filepath}: {str(e)}")
+    
+    def run_query(self, query: str) -> List[Any]:
+        """Run a MeTTa query and return results"""
+        try:
+            result = self.metta.run(query)
+            return result if result else []
+        except Exception as e:
+            logger.error(f"Error running MeTTa query: {str(e)}")
+            return []
+    
     def add_atom(self, atom_str: str, space: str = "default") -> bool:
         """Add a single atom to the specified MeTTa space"""
         try:

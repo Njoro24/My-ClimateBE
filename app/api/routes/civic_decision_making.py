@@ -1,6 +1,6 @@
 """
-Civic Decision-Making API Routes for Climate Witness Chain
-Provides transparent, AI-assisted democratic decision-making tools
+Enhanced Civic Decision-Making API Routes for Climate Witness Chain
+Real data integration for transparent, AI-assisted democratic decision-making
 """
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -9,7 +9,16 @@ from typing import Dict, Any, Optional, List
 from app.services.metta_service import get_shared_knowledge_base
 from app.database.database import get_db
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+import sqlite3
+import os
+import logging
+import statistics
+from collections import defaultdict
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -552,9 +561,73 @@ def _calculate_community_consensus(community_input):
     return positive_input / len(community_input)
 
 async def _get_climate_data_support(issue, evidence, crud):
-    """Get climate data support for the issue"""
-    # Simplified - would analyze climate data relevance
-    return 0.75
+    """Get climate data support for the issue using real verified events"""
+    try:
+        db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'climate_witness.db')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Extract location and event types from issue
+        issue_text = str(issue).lower()
+        
+        # Get all verified events for analysis
+        cursor.execute("""
+            SELECT event_type, location, timestamp, economic_impact, description
+            FROM events 
+            WHERE verification_status = 'verified'
+            AND timestamp > datetime('now', '-365 days')
+        """)
+        
+        all_events = cursor.fetchall()
+        
+        # Find relevant events based on issue content
+        relevant_events = []
+        event_types = ["drought", "flood", "locust", "heatwave", "storm", "wildfire"]
+        
+        for event_type in event_types:
+            if event_type in issue_text:
+                matching_events = [e for e in all_events if e[0] == event_type]
+                relevant_events.extend(matching_events)
+        
+        # Look for location matches
+        locations_mentioned = []
+        cursor.execute("SELECT DISTINCT location FROM events WHERE verification_status = 'verified'")
+        known_locations = [row[0] for row in cursor.fetchall()]
+        
+        for location in known_locations:
+            if location and location.lower() in issue_text:
+                locations_mentioned.append(location)
+                location_events = [e for e in all_events if e[1] == location]
+                relevant_events.extend(location_events)
+        
+        # Remove duplicates
+        relevant_events = list(set(relevant_events))
+        
+        # Calculate support score based on evidence strength
+        if not relevant_events:
+            support_score = 0.3  # Low support if no relevant climate data
+        else:
+            # Base score from having relevant events
+            support_score = 0.6
+            
+            # Boost based on number of events
+            event_boost = min(len(relevant_events) * 0.05, 0.3)
+            support_score += event_boost
+            
+            # Boost based on economic impact data
+            economic_impacts = [e[3] for e in relevant_events if e[3] is not None]
+            if economic_impacts:
+                avg_impact = statistics.mean(economic_impacts)
+                if avg_impact > 10000:  # Significant economic impact
+                    support_score += 0.1
+        
+        conn.close()
+        
+        return min(support_score, 1.0)
+        
+    except Exception as e:
+        logger.error(f"Error getting climate data support: {e}")
+        return 0.5
 
 def _calculate_decision_transparency(evidence, stakeholders, community_input):
     """Calculate transparency score of decision process"""
@@ -596,8 +669,80 @@ def _get_location_vulnerability_factors(location):
     return {"climate_risk": 0.7, "adaptive_capacity": 0.6, "exposure": 0.8}
 
 def _estimate_policy_effectiveness(policy, events):
-    """Estimate policy effectiveness based on historical data"""
-    return 0.75  # Simplified
+    """Estimate policy effectiveness based on real historical event data"""
+    try:
+        if not events:
+            return 0.5  # Neutral if no data
+        
+        policy_lower = policy.lower()
+        
+        # Policy effectiveness mapping based on event patterns
+        effectiveness_factors = {
+            "drought": {
+                "water_conservation": 0.8,
+                "irrigation": 0.85,
+                "drought_resistant_crops": 0.9,
+                "early_warning": 0.7,
+                "insurance": 0.6
+            },
+            "flood": {
+                "drainage_systems": 0.85,
+                "flood_barriers": 0.8,
+                "early_warning": 0.75,
+                "land_use_planning": 0.9,
+                "insurance": 0.65
+            },
+            "locust": {
+                "pest_control": 0.9,
+                "early_detection": 0.85,
+                "crop_protection": 0.8,
+                "regional_coordination": 0.75
+            }
+        }
+        
+        # Count event types in historical data
+        event_counts = defaultdict(int)
+        total_economic_impact = 0
+        
+        for event in events:
+            event_type, location, timestamp, economic_impact, description = event
+            event_counts[event_type] += 1
+            if economic_impact:
+                total_economic_impact += economic_impact
+        
+        # Calculate effectiveness based on most common event types
+        if not event_counts:
+            return 0.5
+        
+        most_common_event = max(event_counts, key=event_counts.get)
+        event_frequency = event_counts[most_common_event]
+        
+        # Base effectiveness from policy-event matching
+        base_effectiveness = 0.5
+        
+        if most_common_event in effectiveness_factors:
+            policy_factors = effectiveness_factors[most_common_event]
+            
+            for policy_keyword, effectiveness in policy_factors.items():
+                if policy_keyword.replace("_", " ") in policy_lower:
+                    base_effectiveness = max(base_effectiveness, effectiveness)
+        
+        # Adjust based on event frequency (more events = higher need for effective policy)
+        frequency_factor = min(event_frequency * 0.05, 0.2)
+        
+        # Adjust based on economic impact (higher impact = more potential for effectiveness)
+        if total_economic_impact > 0:
+            impact_factor = min(total_economic_impact / 100000 * 0.1, 0.15)
+        else:
+            impact_factor = 0
+        
+        final_effectiveness = base_effectiveness + frequency_factor + impact_factor
+        
+        return min(final_effectiveness, 1.0)
+        
+    except Exception as e:
+        logger.error(f"Error estimating policy effectiveness: {e}")
+        return 0.5
 
 def _calculate_policy_cost_benefit(policy, baseline):
     """Calculate cost-benefit analysis for policy"""
@@ -646,5 +791,98 @@ def _generate_allocation_implementation_plan(allocation):
 def _define_allocation_monitoring_metrics(allocation):
     """Define monitoring metrics for allocation"""
     return ["coverage_rate", "impact_effectiveness", "equity_index"]
+
+async def _find_similar_climate_cases(climate_challenge, location, crud):
+    """Find similar climate cases using real event database"""
+    try:
+        db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'climate_witness.db')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        challenge_lower = climate_challenge.lower()
+        
+        # Extract event types from challenge description
+        event_types = []
+        climate_keywords = {
+            "drought": ["drought", "dry", "water shortage", "arid"],
+            "flood": ["flood", "flooding", "overflow", "inundation"],
+            "locust": ["locust", "pest", "swarm", "crop damage"],
+            "heatwave": ["heat", "hot", "temperature", "extreme heat"],
+            "storm": ["storm", "wind", "cyclone", "hurricane"],
+            "wildfire": ["fire", "wildfire", "burning", "smoke"]
+        }
+        
+        for event_type, keywords in climate_keywords.items():
+            if any(keyword in challenge_lower for keyword in keywords):
+                event_types.append(event_type)
+        
+        if not event_types:
+            event_types = list(climate_keywords.keys())  # Search all if no specific type found
+        
+        # Find similar cases
+        similar_cases = []
+        
+        for event_type in event_types:
+            # Get events of this type from various locations
+            cursor.execute("""
+                SELECT id, event_type, location, timestamp, description, economic_impact, verification_status
+                FROM events 
+                WHERE event_type = ? 
+                AND verification_status = 'verified'
+                AND timestamp > datetime('now', '-730 days')  -- Last 2 years
+                ORDER BY timestamp DESC
+                LIMIT 20
+            """, (event_type,))
+            
+            events = cursor.fetchall()
+            
+            for event in events:
+                event_id, evt_type, evt_location, timestamp, description, economic_impact, verification_status = event
+                
+                # Calculate similarity score
+                similarity_score = 0.5  # Base similarity for same event type
+                
+                # Location similarity (simplified)
+                if evt_location and location:
+                    if evt_location.lower() == location.lower():
+                        similarity_score += 0.3  # Same location
+                    elif any(word in evt_location.lower() for word in location.lower().split()):
+                        similarity_score += 0.15  # Partial location match
+                
+                # Description similarity (keyword matching)
+                if description:
+                    desc_lower = description.lower()
+                    challenge_words = set(challenge_lower.split())
+                    desc_words = set(desc_lower.split())
+                    
+                    common_words = challenge_words.intersection(desc_words)
+                    if common_words:
+                        word_similarity = len(common_words) / max(len(challenge_words), len(desc_words))
+                        similarity_score += word_similarity * 0.2
+                
+                # Economic impact similarity
+                if economic_impact and economic_impact > 0:
+                    similarity_score += 0.1  # Boost for having economic data
+                
+                similar_cases.append({
+                    "event_id": event_id,
+                    "event_type": evt_type,
+                    "location": evt_location,
+                    "timestamp": timestamp,
+                    "description": description[:200] + "..." if description and len(description) > 200 else description,
+                    "economic_impact": economic_impact,
+                    "similarity_score": round(similarity_score, 3)
+                })
+        
+        # Sort by similarity and return top matches
+        similar_cases.sort(key=lambda x: x["similarity_score"], reverse=True)
+        
+        conn.close()
+        
+        return similar_cases[:10]  # Return top 10 similar cases
+        
+    except Exception as e:
+        logger.error(f"Error finding similar climate cases: {e}")
+        return []
 
 # More helper functions would continue in similar pattern...
