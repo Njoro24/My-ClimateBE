@@ -17,13 +17,9 @@ router = APIRouter()
 
 
 class ExplainableDecisionRequest(BaseModel):
-    decision_type: (
-        str  # verification, trust_calculation, payout, risk_assessment, policy
-    )
+    decision_type: str  # verification, trust_calculation, payout, risk_assessment, policy
     context: Dict[str, Any]
-    explanation_level: str = (
-        "citizen-friendly"  # basic, detailed, technical, citizen-friendly
-    )
+    explanation_level: str = "citizen-friendly"  # basic, detailed, technical, citizen-friendly
 
 
 class BiasDetectionRequest(BaseModel):

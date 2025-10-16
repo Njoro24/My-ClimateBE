@@ -931,30 +931,7 @@ def _get_domain_type(source):
     elif '.com' in source_lower:
         return "commercial"
     else:
-        return "unknown"eywords):
-            credibility = max(credibility - 0.3, 0.1)
-        
-        conn.close()
-        
-        return {
-            "claim": claim,
-            "credibility": min(credibility, 1.0),
-            "evidence_found": evidence_found,
-            "supporting_events": len(supporting_events),
-            "detected_event_types": detected_events,
-            "detected_locations": locations,
-            "sources": ["verified_climate_events", "community_reports"] if evidence_found else ["no_evidence"]
-        }
-        
-    except Exception as e:
-        logger.error(f"Error verifying claim: {e}")
-        return {
-            "claim": claim,
-            "credibility": 0.5,
-            "evidence_found": False,
-            "error": str(e),
-            "sources": ["error"]
-        }
+        return "unknown"
 
 def _validate_news_source(source):
     """Validate a news source"""
