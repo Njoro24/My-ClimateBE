@@ -232,43 +232,43 @@ def _generate_metta_function(parsed_query: Dict[str, Any], request: NaturalLangu
         if "location" in entities and "event_types" in entities:
             location = entities["location"]
             event_type = entities["event_types"][0] if entities["event_types"] else "drought"
-            return f'(match &event-space (and (event-type $event {event_type}) (location $event "{location}")) $event)'
+            return f'(match &self (and (event-type $event {event_type}) (location $event "{location} County")) $event)'
         elif "location" in entities:
             location = entities["location"]
-            return f'(match &event-space (location $event "{location}") $event)'
+            return f'(match &self (location $event "{location} County") $event)'
         elif "event_types" in entities:
             event_type = entities["event_types"][0]
-            return f'(match &event-space (event-type $event {event_type}) $event)'
+            return f'(match &self (event-type $event {event_type}) $event)'
         else:
-            return '(match &event-space (event $x) $x)'
+            return '(match &self (event $x) $x)'
     
     elif query_type == "trust_query":
         if "user_id" in entities:
             user_id = entities["user_id"]
-            return f'(match &trust-space (trust-score {user_id} $score) $score)'
+            return f'(match &self (trust-score {user_id} $score) $score)'
         elif request.user_trust_score is not None:
-            return f'(match &trust-space (trust-score $user {request.user_trust_score}) $user)'
+            return f'(match &self (trust-score $user {request.user_trust_score}) $user)'
         else:
-            return '(match &trust-space (trust-score $user $score) (list $user $score))'
+            return '(match &self (trust-score $user $score) (list $user $score))'
     
     elif query_type == "economic_query":
         if "event_types" in entities:
             event_type = entities["event_types"][0]
             return f'(payout-eligible {event_type}_001 $amount)'
         else:
-            return '(match &economic-space (payout-eligible $event $amount) (list $event $amount))'
+            return '(match &self (payout-eligible $event $amount) (list $event $amount))'
     
     elif query_type == "verification_query":
         if "numbers" in entities and len(entities["numbers"]) >= 2:
             confidence1, confidence2 = entities["numbers"][:2]
             return f'(auto-verify event_001 user_001 {confidence1} {confidence2})'
         else:
-            return '(match &event-space (verified $event) $event)'
+            return '(match &self (verified $event) $event)'
     
     else:
         # General query - try to find relevant atoms
         if request.user_location:
-            return f'(match &event-space (location $event "{request.user_location}") $event)'
+            return f'(match &self (location $event "{request.user_location}") $event)'
         else:
             return '(match &self $x $x)'
 
