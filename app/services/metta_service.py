@@ -89,6 +89,7 @@ class ClimateWitnessKnowledgeBase:
         
         # List of MeTTa files to load in order
         metta_files = [
+            'query_examples.metta',
             'base_knowledge.metta',
             'helper_functions.metta', 
             'users.metta',

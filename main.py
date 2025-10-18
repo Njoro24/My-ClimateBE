@@ -78,7 +78,7 @@ class PaymentResponse(BaseModel):
     message: str
     checkout_request_id: str = None
 
-from app.api.routes import events, metta, users, auth, community_verification, economic_impact, insurance, dao_governance, alerts, ai_metta, plant_recommendations, contact, admin, payments, researcher, media_integrity
+from app.api.routes import events, metta, users, auth, community_verification, economic_impact, insurance, dao_governance, alerts, ai_metta, plant_recommendations, contact, admin, payments, researcher, media_integrity, metta_query
 from app.api.routes import civic_decision_making_simple as civic_decision_making
 
 try:
@@ -106,6 +106,7 @@ climate_service = ClimateService()
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(events.router, prefix="/api/events", tags=["events"])
 app.include_router(metta.router, prefix="/api/metta", tags=["metta"])
+app.include_router(metta_query.router, prefix="/api/metta", tags=["metta-query"])
 app.include_router(ai_metta.router, prefix="/api/ai-metta", tags=["ai-metta"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(community_verification.router, prefix="/api/community-verification", tags=["community-verification"])
