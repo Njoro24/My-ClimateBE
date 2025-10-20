@@ -31,25 +31,24 @@
           ($affected-population (estimate-affected-population $location $max-risk)))
      (early-warning $location $warning-level $max-risk $risk-assessments $affected-population)))
 
-; Trigger micro-insurance payouts with proper foldl-atom
-(= (trigger-micro-insurance-payouts $event-id $location $event-type $severity)
-   (let* (($affected-policies (match &self (micro-insurance-policy $policy-id $user-id $coverage $location-radius) 
-                                (if (< (distance $location (get-user-location $user-id)) $location-radius)
-                                    ($policy-id $user-id $coverage)
+; Trigger climate impact assessment with proper foldl-atom
+(= (trigger-climate-impact-assessment $event-id $location $event-type $severity)
+   (let* (($affected-users (match &self (user-location $user-id $user-location $location-radius) 
+                                (if (< (distance $location $user-location) $location-radius)
+                                    ($user-id $user-location)
                                     ())))
-          ($payout-calculations (foldl-atom $affected-policies () $acc $policy
-                                  (let* (($policy-id (car-atom $policy))
-                                         ($user-id (car-atom (cdr-atom $policy)))
-                                         ($coverage (car-atom (cdr-atom (cdr-atom $policy))))
+          ($impact-calculations (foldl-atom $affected-users () $acc $user-data
+                                  (let* (($user-id (car-atom $user-data))
+                                         ($user-location (car-atom (cdr-atom $user-data)))
                                          ($damage-assessment (assess-user-damage $user-id $event-id $severity))
-                                         ($payout-amount (* $coverage $damage-assessment))
-                                         ($contract-trigger (smart-contract-trigger micro-insurance-payout 
-                                                             $policy-id $user-id $payout-amount)))
-                                    (cons-atom ($policy-id $payout-amount $contract-trigger) $acc))))
-          ($total-payout (foldl-atom $payout-calculations 0 $acc $calculation
+                                         ($impact-score (* $severity $damage-assessment))
+                                         ($alert-trigger (smart-contract-trigger climate-alert 
+                                                             $user-id $impact-score)))
+                                    (cons-atom ($user-id $impact-score $alert-trigger) $acc))))
+          ($total-impact (foldl-atom $impact-calculations 0 $acc $calculation
                            (+ $acc (car-atom (cdr-atom $calculation)))))
-          ($contracts-triggered (size-atom $payout-calculations)))
-     (micro-insurance-execution $event-id $total-payout $contracts-triggered $payout-calculations)))
+          ($alerts-triggered (size-atom $impact-calculations)))
+     (climate-impact-assessment $event-id $total-impact $alerts-triggered $impact-calculations)))
 
 ; Trigger DAO emergency relief with smart contracts
 (= (trigger-dao-emergency-relief $event-id $location $severity $affected-population)

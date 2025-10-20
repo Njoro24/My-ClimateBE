@@ -197,7 +197,7 @@ async def create_event(
         )
 
         # MeTTa verification
-        metta_verification_result, insurance_result, dao_result, early_warning_result = {}, {}, {}, {}
+        metta_verification_result, dao_result, early_warning_result = {}, {}, {}
 
         if HYPERON_AVAILABLE:
             try:
@@ -217,13 +217,7 @@ async def create_event(
                 logger.error(f"MeTTa verification failed: {e}")
                 metta_verification_result = {"verified": False, "error": str(e)}
 
-            # MeTTa-triggered actions
-            try:
-                logger.info('MeTTa: checking insurance eligibility')
-                insurance_raw = await metta_service.check_insurance_eligibility(user_obj.id, event.id)
-                insurance_result = serialize_metta_result(insurance_raw)
-            except Exception as e:
-                insurance_result = {"error": str(e)}
+
 
             try:
                 logger.info('MeTTa: evaluating DAO proposal')
@@ -250,7 +244,7 @@ async def create_event(
             else:
                 metta_verification_result = {"verified": False, "fallback": True}
             
-            insurance_result = {"message": "MeTTa not available"}
+
             dao_result = {"message": "MeTTa not available"}
             early_warning_result = {"message": "MeTTa not available"}
 
@@ -268,7 +262,6 @@ async def create_event(
                 "description": desc_verification,
             },
             "metta_verification": serialize_metta_result(metta_verification_result),
-            "insurance": insurance_result,
             "dao_relief": dao_result,
             "early_warning": early_warning_result,
         }

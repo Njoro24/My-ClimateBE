@@ -154,11 +154,7 @@ async def get_example_queries():
             "description": "Run verification logic on events",
             "metta_function": "(auto-verify event_001 user_123 85 90)"
         },
-        {
-            "query": "Explain insurance payout calculation",
-            "description": "Get transparent explanation of AI decisions",
-            "metta_function": "(explain-payout-calculation event_001)"
-        },
+
         {
             "query": "Assess weather risk for maize farming",
             "description": "Real-time weather risk assessment",

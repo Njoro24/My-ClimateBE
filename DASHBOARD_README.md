@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Climate Witness Dashboard now uses **real data** from the backend services, not demo data. All dashboard components connect to actual MeTTa-powered services that manage climate events, insurance, DAO governance, alerts, and community verification.
+The Climate Witness Dashboard now uses **real data** from the backend services, not demo data. All dashboard components connect to actual MeTTa-powered services that manage climate events, DAO governance, alerts, and community verification.
 
 ## Real Data Services
 
@@ -11,10 +11,7 @@ The Climate Witness Dashboard now uses **real data** from the backend services, 
 - **MeTTa integration**: User atoms stored in knowledge base
 - **Dashboard data**: User stats, trust scores, verification counts, location data
 
-### 2. Insurance Service (`app/services/insurance_service.py`)
-- **Real functionality**: Creates policies, processes payouts, manages coverage
-- **MeTTa integration**: Insurance triggers based on verified events
-- **Dashboard data**: Policy status, payout history, coverage amounts
+
 
 ### 3. DAO Governance Service (`app/services/dao_governance_service.py`)
 - **Real functionality**: Creates proposals, manages voting, executes funding
@@ -37,8 +34,7 @@ All dashboard API calls connect to real backend endpoints:
 
 ```
 /api/users/{userId}/stats          - Real user statistics
-/api/insurance/user/{userId}/policies - Real insurance policies
-/api/insurance/user/{userId}/payouts  - Real payout history
+
 /api/dao-governance/proposals/active  - Real active proposals
 /api/dao-governance/stats            - Real DAO statistics
 /api/alerts/user/{userId}            - Real user alerts
@@ -58,10 +54,7 @@ All dashboard API calls connect to real backend endpoints:
 - **Location data**: Actual user location for relevant alerts
 - **Activity history**: Real event submissions and verifications
 
-### Insurance Dashboard
-- **Policy management**: Create and view real insurance policies
-- **Payout tracking**: Track actual insurance payouts
-- **Coverage details**: Real coverage amounts and premium data
+
 
 ### DAO Governance
 - **Proposal creation**: Submit real funding proposals
@@ -88,10 +81,10 @@ python init_dashboard_data.py
 This creates sample real data for testing:
 - 5 users with different trust scores and locations
 - 3 verified climate events
-- Insurance policies for eligible users
+
 - DAO proposals for funding
 - Climate alerts for different regions
-- Processed insurance payouts
+
 
 ### Test Dashboard Services
 ```bash
@@ -106,7 +99,7 @@ The frontend dashboard (`FECW/ClimateWitness/src/pages/Dashboard.jsx`) now inclu
 
 ### Real Data Display
 - **User stats**: Shows actual trust scores, verification counts
-- **Insurance data**: Displays real policies and payouts
+
 - **DAO information**: Shows active proposals and voting status
 - **Alert notifications**: Real-time climate alerts
 - **Verification tasks**: Actual community verification assignments
@@ -118,7 +111,7 @@ The frontend dashboard (`FECW/ClimateWitness/src/pages/Dashboard.jsx`) now inclu
 - **Loading states**: Proper loading indicators during data fetch
 
 ### Navigation
-- **Insurance page**: Full insurance management interface
+
 - **DAO page**: Complete governance and voting interface
 - **Alerts page**: Comprehensive alert management
 - **Verification page**: Community verification dashboard

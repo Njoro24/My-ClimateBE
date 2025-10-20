@@ -159,7 +159,7 @@ class GPTOSSService:
         """Enhanced reasoning for blockchain smart contract interactions"""
         try:
             prompt = f"""
-            You are an expert in blockchain smart contracts and climate insurance logic.
+            You are an expert in blockchain smart contracts and climate data analysis.
             
             Contract Data: {json.dumps(contract_data, indent=2)}
             
@@ -168,9 +168,9 @@ class GPTOSSService:
             2. Gas optimization suggestions
             3. Security considerations
             4. Economic impact analysis
-            5. Climate insurance logic validation
+            5. Climate data validation
             6. Risk assessment
-            7. Payout calculation verification
+            7. Data accuracy verification
             8. Fraud detection insights
             
             Consider Polygon/Mumbai testnet specifics and provide actionable insights.
@@ -259,7 +259,7 @@ class GPTOSSService:
             4. Severity estimates
             5. Affected area analysis
             6. Recommended actions for farmers/communities
-            7. Insurance implications
+            7. Economic implications
             8. Correlation with global climate patterns
             
             Provide actionable insights with uncertainty quantification.
@@ -341,7 +341,7 @@ class GPTOSSService:
             # Define available functions for the model
             functions = [
                 {
-                    "name": "trigger_micro_insurance",
+                    "name": "trigger_climate_alert",
                     "description": "Trigger micro-insurance payout for verified climate event",
                     "parameters": {
                         "type": "object",

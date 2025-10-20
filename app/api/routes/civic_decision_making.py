@@ -1269,15 +1269,13 @@ def _estimate_policy_effectiveness(policy, events):
                 "water_conservation": 0.8,
                 "irrigation": 0.85,
                 "drought_resistant_crops": 0.9,
-                "early_warning": 0.7,
-                "insurance": 0.6
+                "early_warning": 0.7
             },
             "flood": {
                 "drainage_systems": 0.85,
                 "flood_barriers": 0.8,
                 "early_warning": 0.75,
-                "land_use_planning": 0.9,
-                "insurance": 0.65
+                "land_use_planning": 0.9
             },
             "locust": {
                 "pest_control": 0.9,

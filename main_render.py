@@ -49,7 +49,7 @@ optional_routes = [
     ('metta', 'metta'),
     ('community_verification', 'community-verification'),
     ('economic_impact', 'economic-impact'),
-    ('insurance', 'insurance'),
+
     ('dao_governance', 'dao'),
     ('alerts', 'alerts'),
     ('plant_recommendations', 'plants'),

@@ -29,12 +29,12 @@
 (warning-threshold extreme_heat 4)
 
 
-;; Insurance coverage factors
+;; Risk assessment factors
 
-(insurance-coverage livestock_risk 0.7)
-(insurance-coverage crop_failure 0.8)
-(insurance-coverage infrastructure_damage 0.6)
-(insurance-coverage water_scarcity 0.5)
+(risk-factor livestock_risk 0.7)
+(risk-factor crop_failure 0.8)
+(risk-factor infrastructure_damage 0.6)
+(risk-factor water_scarcity 0.5)
 
 
 ;; Location economic multipliers

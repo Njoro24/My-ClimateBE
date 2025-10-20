@@ -71,11 +71,11 @@
        False))
 
 ; Smart contract trigger conditions
-(= (trigger-micro-insurance $event)
+(= (trigger-climate-alert $event)
    (if (and (verified $event)
             (and (match &self (severity $event $severity-level) $severity-level)
                  (>= $severity-level medium)))
-       (insurance-triggered $event)
+       (alert-triggered $event)
        False))
 
 (= (trigger-early-warning $location $event-type)

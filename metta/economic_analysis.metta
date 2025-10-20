@@ -24,15 +24,15 @@
 
 
 
-; Trigger micro-insurance smart contract (used by insurance_service.py)
-(= (trigger-micro-insurance $event-id $location $severity)
+; Trigger climate impact assessment smart contract
+(= (trigger-climate-impact $event-id $location $severity)
    (let* (($affected-users (match &self (user-location $user-id $user-loc) ;; gets nearby users
                               (if (< (distance $location $user-loc) 25) $user-id (empty))))
-          ($total-payout (foldl-atom $affected-users 0 $acc $user-id
-                           (let (($coverage (match &self (insurance-policy $user-id $coverage-amount) $coverage-amount)))
-                             (+ $acc (* $coverage (* $severity 0.8))))))
-          ($contract-call (smart-contract-call micro-insurance-payout $event-id $total-payout)))
-     (micro-insurance-triggered $event-id $total-payout $contract-call)))
+          ($total-impact (foldl-atom $affected-users 0 $acc $user-id
+                           (let (($impact-factor (match &self (user-vulnerability $user-id $vulnerability) $vulnerability)))
+                             (+ $acc (* $impact-factor (* $severity 0.8))))))
+          ($contract-call (smart-contract-call climate-impact-alert $event-id $total-impact)))
+     (climate-impact-triggered $event-id $total-impact $contract-call)))
 
 ; Trigger DAO relief fund (used by dao_governance_service.py)
 (= (trigger-dao-relief $event-id $location $severity)

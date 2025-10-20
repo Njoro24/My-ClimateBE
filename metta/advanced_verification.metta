@@ -36,24 +36,12 @@
    (let* (($type (car-atom $event-data))
           ($location (car-atom (cdr-atom $event-data)))
           ($severity (car-atom (cdr-atom (cdr-atom $event-data))))
-          ($insurance-trigger (trigger-micro-insurance $event-id $location $severity))
           ($warning-trigger (trigger-early-warning $event-id $location $severity))
           ($dao-trigger (trigger-dao-relief $event-id $location $severity))
-          ($all-triggers (list $insurance-trigger $warning-trigger $dao-trigger)))
+          ($all-triggers (list $warning-trigger $dao-trigger)))
      $all-triggers))
 
-; Trigger micro-insurance smart contract
-(= (trigger-micro-insurance $event-id $location $severity)
-   (let* (($affected-policies (match &self (insurance-policy $policy-id $user-id $coverage $policy-location) 
-                                (if (< (distance $location $policy-location) 20)
-                                    ($policy-id $user-id $coverage)
-                                    ())))
-          ($total-payout (foldl-atom $affected-policies 0 $acc $policy
-                           (let* (($coverage (car-atom (cdr-atom (cdr-atom $policy))))
-                                  ($payout (* $coverage $severity)))
-                             (+ $acc $payout))))
-          ($contract-call (smart-contract-call micro-insurance-payout $event-id $total-payout)))
-     (micro-insurance-triggered $event-id $total-payout $contract-call)))
+
 
 ; Trigger early warning smart contract
 (= (trigger-early-warning $event-id $location $severity)

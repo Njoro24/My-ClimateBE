@@ -56,22 +56,7 @@ atexit.register(cleanup_blockchain_listener)
 # Initialize listener when the module loads (but safely)
 initialize_blockchain_listener()
 
-@router.post("/deploy-contract")
-async def deploy_contract():
-    """Deploy ClimateInsurance smart contract to Polygon Mumbai testnet"""
-    try:
-        result = await blockchain_service.deploy_contract()
-        
-        if result["success"]:
-            return {
-                "message": "Smart contract deployed successfully",
-                **result
-            }
-        else:
-            return {
-                "message": "Smart contract deployment failed",
-                **result
-            }
+
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Deployment failed: {str(e)}")
@@ -143,32 +128,7 @@ async def trigger_payout(payout_data: Dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Payout processing failed: {str(e)}")
 
-@router.post("/create-policy")
-async def create_insurance_policy(policy_data: Dict):
-    """Create an insurance policy for a user"""
-    try:
-        user_address = policy_data.get("user_address")
-        premium = policy_data.get("premium", 0.01)
-        
-        if not user_address:
-            raise HTTPException(status_code=400, detail="user_address is required")
-        
-        # Validate user address
-        if not blockchain_service.validate_address(user_address):
-            raise HTTPException(status_code=400, detail="Invalid user address")
-        
-        result = await blockchain_service.create_insurance_policy(user_address, premium)
-        
-        if result["success"]:
-            return {
-                "message": "Insurance policy created successfully",
-                **result
-            }
-        else:
-            raise HTTPException(status_code=400, detail=result["error"])
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Policy creation failed: {str(e)}")
+
 
 @router.get("/transaction/{tx_hash}")
 async def get_transaction_status(tx_hash: str):
