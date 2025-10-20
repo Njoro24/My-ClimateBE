@@ -6,7 +6,7 @@ Handles natural language queries and converts them to MeTTa functions
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, Any, Optional, List
-from app.services.metta_service import get_shared_knowledge_base
+from app.services.metta_service import ClimateWitnessKnowledgeBase
 from app.database.database import get_db
 import json
 from datetime import datetime
@@ -38,7 +38,7 @@ async def process_natural_language_query(request: NaturalLanguageQueryRequest):
         start_time = datetime.now()
         
         # Get MeTTa knowledge base
-        kb = get_shared_knowledge_base()
+        kb = ClimateWitnessKnowledgeBase()
         
         # Parse the natural language query
         parsed_query = _parse_natural_language_query(request.query)
@@ -87,7 +87,7 @@ async def execute_metta_function(request: MettaFunctionRequest):
     Execute a specific MeTTa function directly
     """
     try:
-        kb = get_shared_knowledge_base()
+        kb = ClimateWitnessKnowledgeBase()
         
         # Execute the MeTTa function
         result = kb.run_metta_function(request.metta_function)
@@ -110,7 +110,7 @@ async def get_knowledge_base_stats():
     Get current knowledge base statistics
     """
     try:
-        kb = get_shared_knowledge_base()
+        kb = ClimateWitnessKnowledgeBase()
         kb_state = kb.get_knowledge_base_state()
         
         return {

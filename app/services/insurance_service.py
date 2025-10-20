@@ -8,7 +8,7 @@ import json
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
-from app.services.metta_service import MeTTaService
+from app.services.metta_service import ClimateWitnessKnowledgeBase
 from app.database import crud
 from app.database.models import Event, User, MeTTaAtom
 
@@ -95,8 +95,7 @@ class SimpleInsuranceService:
     
     def __init__(self, db_path: str = "./climate_witness.db"):
         self.db_path = db_path
-        self.metta_service = MeTTaService(db_path)
-    # self.crud = None
+        self.knowledge_base = ClimateWitnessKnowledgeBase()
         
         # Simple insurance parameters
         self.base_premium = 50.0  # $50 USD
@@ -171,7 +170,7 @@ class SimpleInsuranceService:
             
             # Add policy to MeTTa knowledge base
             policy_atom = f'(insurance-policy {user_id} {final_coverage} {final_premium} "active" "{crop_type}" {farm_size})'
-            self.metta_service.add_to_atom_space('governance', policy_atom)
+            self.knowledge_base.add_atom(policy_atom, 'governance')
             
             return {
                 'success': True,
@@ -242,7 +241,7 @@ class SimpleInsuranceService:
             
             # Add claim to MeTTa knowledge base
             claim_atom = f'(insurance-claim {user_id} "{event_id}" "{claim_reason}" "pending")'
-            self.metta_service.add_to_atom_space('governance', claim_atom)
+            self.knowledge_base.add_atom(claim_atom, 'governance')
             
             return {
                 'success': True,
@@ -391,7 +390,7 @@ class SimpleInsuranceService:
             
             # Run MeTTa micro-insurance trigger
             metta_query = f'!(trigger-micro-insurance "{event_id}" ({event.latitude} {event.longitude}) {severity})'
-            metta_result = self.metta_service.knowledge_base.metta.run(metta_query)
+            metta_result = self.knowledge_base.run_metta_function(metta_query)
             
             # Parse MeTTa result
             eligibility_result = self._parse_metta_insurance_result(metta_result)
@@ -451,7 +450,7 @@ class SimpleInsuranceService:
             
             # Add payout to MeTTa knowledge base
             payout_atom = f'(insurance-payout {user_id} "{event_id}" {payout_amount} "completed")'
-            self.metta_service.add_to_atom_space('governance', payout_atom)
+            self.knowledge_base.add_atom(payout_atom, 'governance')
             
             # Update user's wallet balance (simplified - in reality would be blockchain transaction)
             user = await crud.get_user_by_id(user_id)
