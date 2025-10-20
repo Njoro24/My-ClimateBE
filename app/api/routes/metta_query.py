@@ -190,8 +190,16 @@ def _parse_natural_language_query(query: str) -> Dict[str, Any]:
     query_type = "general"
     entities = {}
     
+    # GPS/coordinates queries
+    if any(word in query_lower for word in ["gps", "coordinates", "location", "coords"]):
+        query_type = "gps_query"
+    
+    # Photo evidence queries
+    elif any(word in query_lower for word in ["photo", "evidence", "image", "picture"]):
+        query_type = "photo_query"
+    
     # Event-related queries
-    if any(word in query_lower for word in ["event", "drought", "flood", "locust", "climate"]):
+    elif any(word in query_lower for word in ["event", "drought", "flood", "locust", "climate"]):
         query_type = "event_query"
         
         # Extract event types
@@ -243,15 +251,21 @@ def _generate_metta_function(parsed_query: Dict[str, Any], request: NaturalLangu
     query_type = parsed_query["query_type"]
     entities = parsed_query["entities"]
     
-    if query_type == "event_query":
-        if "location" in entities and "event_types" in entities:
+    if query_type == "gps_query":
+        return '(match &self (and (verified $event) (gps-coords $event $coords)) (list $event $coords))'
+    
+    elif query_type == "photo_query":
+        return '(match &self (evidence-link $event $photo) (list $event $photo))'
+    
+    elif query_type == "event_query":
+        if "location" in entities and "event_types" in entities and entities["event_types"]:
             location = entities["location"]
-            event_type = entities["event_types"][0] if entities["event_types"] else "drought"
+            event_type = entities["event_types"][0]
             return f'(match &self (and (event-type $event {event_type}) (location $event "{location} County")) $event)'
         elif "location" in entities:
             location = entities["location"]
             return f'(match &self (location $event "{location} County") $event)'
-        elif "event_types" in entities:
+        elif "event_types" in entities and entities["event_types"]:
             event_type = entities["event_types"][0]
             return f'(match &self (event-type $event {event_type}) $event)'
         else:
@@ -267,7 +281,7 @@ def _generate_metta_function(parsed_query: Dict[str, Any], request: NaturalLangu
             return '(match &self (trust-score $user $score) (list $user $score))'
     
     elif query_type == "economic_query":
-        if "event_types" in entities:
+        if "event_types" in entities and entities["event_types"]:
             event_type = entities["event_types"][0]
             return f'(payout-eligible {event_type}_001 $amount)'
         else:

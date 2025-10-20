@@ -51,7 +51,6 @@ class ClimateWitnessKnowledgeBase:
     def __init__(self):
         """Initialize MeTTa runner with climate knowledge and multiple atom spaces"""
         self.metta = MeTTa()
-        self.space = self.metta.space()  # Get the space to query atoms
         self.atom_spaces = {}
         self.verification_history = []
         self.loaded_files = []
