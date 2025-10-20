@@ -56,11 +56,6 @@ atexit.register(cleanup_blockchain_listener)
 # Initialize listener when the module loads (but safely)
 initialize_blockchain_listener()
 
-
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Deployment failed: {str(e)}")
-
 @router.post("/register-event")
 async def register_event_on_blockchain(event_data: Dict):
     """Register a climate event on the blockchain"""
