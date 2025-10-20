@@ -130,45 +130,44 @@ async def get_example_queries():
     """
     examples = [
         {
-            "query": "Show me drought events in Turkana County",
-            "description": "Find climate events by location and type",
-            "metta_function": "(match &event-space (event-type $event drought) (location $event \"Turkana\"))"
+            "query": "Show me the drought event in Turkana County",
+            "description": "Find the verified drought event drought_001",
+            "metta_function": "(match &self (and (event-type drought_001 drought) (location drought_001 \"Turkana County\")) drought_001)"
         },
         {
-            "query": "What are the trust scores of community reporters?",
-            "description": "Query trust scores for active reporters",
-            "metta_function": "(match &trust-space (and (trust-score $user $score) (> $score 60)) (list $user $score))"
+            "query": "What is the economic impact of flood_002 in Marsabit?",
+            "description": "Get economic damage data for specific flood event",
+            "metta_function": "(match &self (economic-impact flood_002 $damage) $damage)"
         },
         {
-            "query": "Find recent flood events with high severity",
-            "description": "Query events by type and severity level",
-            "metta_function": "(match &self (and (event-type $event flood) (severity $event $level) (> $level 0.7)) $event)"
+            "query": "Find the locust event in Kajiado County",
+            "description": "Query the locust_003 event by location",
+            "metta_function": "(match &self (and (event-type locust_003 locust) (location locust_003 \"Kajiado County\")) locust_003)"
         },
         {
-            "query": "Show climate events near Nairobi coordinates",
-            "description": "Find events within geographic radius",
-            "metta_function": "(match &self (and (location $event $lat $lon) (< (distance -1.2921 36.8219 $lat $lon) 50)) $event)"
+            "query": "Show GPS coordinates for verified events",
+            "description": "Get location data for verified climate events",
+            "metta_function": "(match &self (and (verified $event) (gps-coords $event $coords)) (list $event $coords))"
         },
         {
-            "query": "Verify locust swarm event with satellite data",
-            "description": "Run verification logic on locust events",
-            "metta_function": "(auto-verify locust_swarm satellite_evidence 88 92)"
-        },
-
-        {
-            "query": "Calculate economic impact of drought events",
-            "description": "Assess economic damage from climate events",
-            "metta_function": "(match &self (and (event-type $event drought) (economic-impact $event $damage)) (list $event $damage))"
+            "query": "Which events have photo evidence?",
+            "description": "Find events with uploaded evidence files",
+            "metta_function": "(match &self (evidence-link $event $photo) (list $event $photo))"
         },
         {
-            "query": "Find events verified by multiple reporters",
-            "description": "Query events with community consensus",
-            "metta_function": "(match &self (and (verified $event) (reporter-count $event $count) (> $count 2)) $event)"
+            "query": "Calculate total economic damage from all events",
+            "description": "Sum economic impacts across all climate events",
+            "metta_function": "(let (($impacts (match &self (economic-impact $event $damage) $damage))) (foldl + 0 $impacts))"
         },
         {
-            "query": "Assess weather risk for maize farming in Kisumu",
-            "description": "Real-time weather risk assessment for crops",
-            "metta_function": "(assess-weather-risk \"maize\" -0.0917 34.7680 \"Kisumu\")"
+            "query": "Show events reported in January 2024",
+            "description": "Filter events by timestamp range",
+            "metta_function": "(match &self (and (timestamp $event $time) (starts-with $time \"2024-01\")) $event)"
+        },
+        {
+            "query": "Find events with highest economic impact",
+            "description": "Query events sorted by damage amount",
+            "metta_function": "(match &self (and (economic-impact $event $damage) (> $damage 60000)) (list $event $damage))"
         }
     ]
     

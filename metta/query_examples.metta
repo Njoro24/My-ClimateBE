@@ -34,7 +34,7 @@
 ; Event reporters
 (reports user_001 drought_001)
 (reports user_002 flood_002)
-(reports user_123 locust_003)
+(reports user_003 locust_003)
 
 ; Verified events
 (verified drought_001)
