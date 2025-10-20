@@ -53,7 +53,7 @@ async def get_verifier_stats(user_id: str):
         "user_id": user_id,
         "total_verifications": 0,
         "accuracy_rate": 0.85,
-        "trust_score": 75,
+        "trust_score": 52,
         "pending_assignments": 0
     }
 

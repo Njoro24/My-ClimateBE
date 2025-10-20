@@ -158,12 +158,12 @@ async def get_example_queries():
         {
             "query": "Explain why this climate event was verified",
             "description": "Understand verification decision factors",
-            "metta_function": "(explain-verification event_001 user_123)"
+            "metta_function": "(explain-verification drought_001 user_001)"
         },
         {
             "query": "Why was this user's trust score calculated this way?",
             "description": "Transparency in trust score calculation",
-            "metta_function": "(explain-trust-calculation user_123)"
+            "metta_function": "(explain-trust-calculation user_001)"
         },
 
         {

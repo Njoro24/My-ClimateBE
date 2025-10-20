@@ -209,7 +209,7 @@ async def seed_sample_data(db_path: str = "./climate_witness.db"):
                 'last_name': 'Hassan',
                 'role': 'user',
                 'wallet_address': '0x742d35Cc6634C0532925a3b8D4C9db96590e4CAF',
-                'trust_score': 75,
+                'trust_score': 52,
                 'location_region': 'Turkana, Kenya',
                 'created_at': datetime.now().isoformat()
             },
@@ -331,7 +331,7 @@ async def seed_sample_data(db_path: str = "./climate_witness.db"):
                 'atom_content': json.dumps({
                     'atom': '(user Amina)',
                     'location': '(location Amina Turkana)',
-                    'trust_score': '(trust_score Amina 75)'
+                    'trust_score': '(trust_score Amina 52)'
                 })
             },
             {

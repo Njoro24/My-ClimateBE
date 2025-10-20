@@ -15,17 +15,27 @@ async def get_example_queries():
         "success": True,
         "example_queries": [
             {
-                "query": "Show me drought events in Turkana County",
-                "description": "Find climate events by location and type",
-                "metta_function": "(match &event-space (event-type $event drought) (location $event \"Turkana\"))"
+                "query": "Show me the drought event in Turkana County",
+                "description": "Find the verified drought event drought_001",
+                "metta_function": "(match &self (and (event-type drought_001 drought) (location drought_001 \"Turkana County\")) drought_001)"
             },
             {
-                "query": "What is the trust score of user 123?",
-                "description": "Query user trust information", 
-                "metta_function": "(match &trust-space (trust-score 123 $score) $score)"
+                "query": "What is the economic impact of flood_002 in Marsabit?",
+                "description": "Get economic damage data for specific flood event",
+                "metta_function": "(match &self (economic-impact flood_002 $damage) $damage)"
+            },
+            {
+                "query": "Find the locust event in Kajiado County",
+                "description": "Query the locust_003 event by location",
+                "metta_function": "(match &self (and (event-type locust_003 locust) (location locust_003 \"Kajiado County\")) locust_003)"
+            },
+            {
+                "query": "Which events have photo evidence?",
+                "description": "Find events with uploaded evidence files",
+                "metta_function": "(match &self (evidence-link $event $photo) (list $event $photo))"
             }
         ],
-        "total_examples": 2
+        "total_examples": 4
     }
 
 @router.get("/knowledge-base-stats")

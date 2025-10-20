@@ -54,7 +54,7 @@ async def get_user_stats(user_id: str):
         "stats": {
             "total_events": 0,
             "verified_events": 0,
-            "trust_score": 75,
+            "trust_score": 52,
             "total_payouts": 0,
             "active_policies": 0,
             "verification_accuracy": 0.85
@@ -68,7 +68,7 @@ async def get_user_profile(user_id: str):
         "user": {
             "id": user_id,
             "wallet_address": f"0x{user_id[-8:]}",
-            "trust_score": 75,
+            "trust_score": 52,
             "location_region": "Nairobi",
             "created_at": "2024-01-01T00:00:00Z",
             "total_events": 0,
