@@ -135,30 +135,40 @@ async def get_example_queries():
             "metta_function": "(match &event-space (event-type $event drought) (location $event \"Turkana\"))"
         },
         {
-            "query": "What is the trust score of user 123?",
-            "description": "Query user trust information",
-            "metta_function": "(match &trust-space (trust-score 123 $score) $score)"
+            "query": "What are the trust scores of community reporters?",
+            "description": "Query trust scores for active reporters",
+            "metta_function": "(match &trust-space (and (trust-score $user $score) (> $score 60)) (list $user $score))"
         },
         {
-            "query": "Calculate payout for verified flood event",
-            "description": "Calculate economic payouts for events",
-            "metta_function": "(payout-eligible flood_001 $amount)"
+            "query": "Find recent flood events with high severity",
+            "description": "Query events by type and severity level",
+            "metta_function": "(match &self (and (event-type $event flood) (severity $event $level) (> $level 0.7)) $event)"
         },
         {
-            "query": "Find high-trust users in Marsabit",
-            "description": "Query users by location and trust level",
-            "metta_function": "(match &trust-space (and (location $user \"Marsabit\") (trust-score $user $score) (> $score 70)))"
+            "query": "Show climate events near Nairobi coordinates",
+            "description": "Find events within geographic radius",
+            "metta_function": "(match &self (and (location $event $lat $lon) (< (distance -1.2921 36.8219 $lat $lon) 50)) $event)"
         },
         {
-            "query": "Verify climate event with photo evidence",
-            "description": "Run verification logic on events",
-            "metta_function": "(auto-verify event_001 user_123 85 90)"
+            "query": "Verify locust swarm event with satellite data",
+            "description": "Run verification logic on locust events",
+            "metta_function": "(auto-verify locust_swarm satellite_evidence 88 92)"
         },
 
         {
-            "query": "Assess weather risk for maize farming",
-            "description": "Real-time weather risk assessment",
-            "metta_function": "(assess-weather-risk \"maize\" -1.0 36.0)"
+            "query": "Calculate economic impact of drought events",
+            "description": "Assess economic damage from climate events",
+            "metta_function": "(match &self (and (event-type $event drought) (economic-impact $event $damage)) (list $event $damage))"
+        },
+        {
+            "query": "Find events verified by multiple reporters",
+            "description": "Query events with community consensus",
+            "metta_function": "(match &self (and (verified $event) (reporter-count $event $count) (> $count 2)) $event)"
+        },
+        {
+            "query": "Assess weather risk for maize farming in Kisumu",
+            "description": "Real-time weather risk assessment for crops",
+            "metta_function": "(assess-weather-risk \"maize\" -0.0917 34.7680 \"Kisumu\")"
         }
     ]
     
