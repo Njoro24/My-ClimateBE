@@ -28,6 +28,13 @@ class AlertSubscriptionRequest(BaseModel):
     latitude: float
     longitude: float
     radius_km: float = 50.0
+
+@router.get("/user/{user_id}")
+async def get_user_alerts(user_id: str):
+    """Get alerts for a specific user"""
+    return {
+        "alerts": []
+    }
     alert_types: List[str] = ["early_warning", "event_verified", "high_risk"]
     severity_threshold: str = "medium"
     notification_methods: List[str] = ["websocket"]

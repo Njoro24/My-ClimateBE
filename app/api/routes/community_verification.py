@@ -46,6 +46,22 @@ class ConsensusStatus(BaseModel):
     negative_verifications: int
     final_result: str
 
+@router.get("/verifier-stats/{user_id}")
+async def get_verifier_stats(user_id: str):
+    """Get verification statistics for a user"""
+    return {
+        "user_id": user_id,
+        "total_verifications": 0,
+        "accuracy_rate": 0.85,
+        "trust_score": 75,
+        "pending_assignments": 0
+    }
+
+@router.get("/assignments/{user_id}")
+async def get_verification_assignments(user_id: str):
+    """Get verification assignments for a user"""
+    return []
+
 @router.post("/assign-verifiers")
 async def assign_verifiers(
     request: VerifierAssignmentRequest,

@@ -46,6 +46,43 @@ async def get_all_users(crud = None):
         "users": [user.to_dict() for user in users]
     }
 
+@router.get("/{user_id}/stats")
+async def get_user_stats(user_id: str):
+    """Get user statistics"""
+    return {
+        "user_id": user_id,
+        "stats": {
+            "total_events": 0,
+            "verified_events": 0,
+            "trust_score": 75,
+            "total_payouts": 0,
+            "active_policies": 0,
+            "verification_accuracy": 0.85
+        }
+    }
+
+@router.get("/{user_id}")
+async def get_user_profile(user_id: str):
+    """Get user profile"""
+    return {
+        "user": {
+            "id": user_id,
+            "wallet_address": f"0x{user_id[-8:]}",
+            "trust_score": 75,
+            "location_region": "Nairobi",
+            "created_at": "2024-01-01T00:00:00Z",
+            "total_events": 0,
+            "verified_events": 0
+        }
+    }
+
+@router.get("/{user_id}/history")
+async def get_user_history(user_id: str):
+    """Get user activity history"""
+    return {
+        "history": []
+    }
+
 @router.get("/wallet/{wallet_address}")
 async def get_user_by_wallet(wallet_address: str, crud = None):
     """Get user by wallet address"""

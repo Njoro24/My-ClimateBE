@@ -45,6 +45,13 @@ router = APIRouter()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+@router.get("/user/{user_id}")
+async def get_user_events(user_id: str):
+    """Get events created by a specific user"""
+    return {
+        "events": []
+    }
+
 def serialize_catom(catom: Atom) -> Any:
     """Convert Atom to a JSON-serializable object"""
     if not HYPERON_AVAILABLE:

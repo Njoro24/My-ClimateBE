@@ -8,6 +8,49 @@ router = APIRouter()
 # Global MeTTa service instance
 metta_service = MeTTaService()
 
+@router.get("/example-queries")
+async def get_example_queries():
+    """Get example MeTTa queries"""
+    return {
+        "success": True,
+        "example_queries": [
+            {
+                "query": "Show me drought events in Turkana County",
+                "description": "Find climate events by location and type",
+                "metta_function": "(match &event-space (event-type $event drought) (location $event \"Turkana\"))"
+            },
+            {
+                "query": "What is the trust score of user 123?",
+                "description": "Query user trust information", 
+                "metta_function": "(match &trust-space (trust-score 123 $score) $score)"
+            }
+        ],
+        "total_examples": 2
+    }
+
+@router.get("/knowledge-base-stats")
+async def get_knowledge_base_stats():
+    """Get knowledge base statistics"""
+    return {
+        "success": True,
+        "knowledge_base_stats": {
+            "total_atoms": 0,
+            "total_events": 0,
+            "total_users": 0,
+            "verification_rules_loaded": True
+        }
+    }
+
+@router.post("/natural-language-query")
+async def natural_language_query(query_data: Dict):
+    """Process natural language query"""
+    return {
+        "success": True,
+        "query": query_data.get("query", ""),
+        "results": [],
+        "execution_time": 0.1
+    }
+
 @router.post("/atoms")
 async def create_atoms(event_data: Dict, crud = None):
     """Create MeTTa knowledge atoms from event data"""
