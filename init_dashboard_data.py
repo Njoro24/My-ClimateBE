@@ -113,7 +113,7 @@ async def initialize_dashboard_data():
                     description=event_data["description"],
                     latitude=event_data["latitude"],
                     longitude=event_data["longitude"],
-                    verification_status="verified",  # Pre-verified for demo
+                    verification_status="verified",  # Pre-verified for testing
                     timestamp=datetime.now() - timedelta(days=i+1)
                 )
                 

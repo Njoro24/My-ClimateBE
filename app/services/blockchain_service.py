@@ -67,18 +67,18 @@ class BlockchainService:
         self.thread_pool.shutdown(wait=False)
     
     def _get_or_create_private_key(self) -> str:
-        """Get or create a private key for demo purposes"""
-        private_key_file = "demo_private_key.txt"
+        """Get or create a private key for blockchain operations"""
+        private_key_file = "blockchain_private_key.txt"
         
         if os.path.exists(private_key_file):
             with open(private_key_file, 'r') as f:
                 return f.read().strip()
         else:
-            # Create new account for demo
+            # Create new blockchain account
             account = Account.create()
             with open(private_key_file, 'w') as f:
                 f.write(account.key.hex())
-            logger.warning(f"⚠️ Created new demo account: {account.address}")
+            logger.warning(f"⚠️ Created new blockchain account: {account.address}")
             logger.warning(f"⚠️ Please fund this account with Mumbai testnet MATIC")
             logger.warning(f"   Get testnet MATIC from: https://faucet.polygon.technology/")
             return account.key.hex()
@@ -296,7 +296,7 @@ class BlockchainService:
                 "transaction_hash": "0x" + str(uuid.uuid4()).replace("-", ""),
                 "gas_used": 2500000,
                 "deployment_cost": "0.01 MATIC",
-                "note": "This is a simulated deployment for demo purposes"
+                "note": "This is a simulated deployment for testing purposes"
             }
             
         except Exception as e:
@@ -361,7 +361,7 @@ class BlockchainService:
                 "contract_address": self.contract_address,
                 "gas_used": 150000,
                 "metadata": metadata,
-                "note": "Simulated blockchain transaction for demo"
+                "note": "Simulated blockchain transaction for testing"
             }
             
         except Exception as e:
@@ -401,7 +401,7 @@ class BlockchainService:
                 "transaction_hash": tx_hash,
                 "gas_used": 120000,
                 "verifier": self.deployer_account.address,
-                "note": "Simulated verification transaction for demo"
+                "note": "Simulated verification transaction for testing"
             }
             
         except Exception as e:
@@ -446,7 +446,7 @@ class BlockchainService:
                 "payout_amount_wei": str(payout_amount_wei),
                 "transaction_hash": tx_hash,
                 "gas_used": 100000,
-                "note": "Simulated payout transaction for demo"
+                "note": "Simulated payout transaction for testing"
             }
             
         except Exception as e:
@@ -477,7 +477,7 @@ class BlockchainService:
                 "end_date": datetime.fromtimestamp(datetime.now().timestamp() + 365*24*3600).isoformat(),
                 "transaction_hash": tx_hash,
                 "gas_used": 180000,
-                "note": "Simulated policy creation for demo"
+                "note": "Simulated policy creation for testing"
             }
             
         except Exception as e:
@@ -498,7 +498,7 @@ class BlockchainService:
                 "gas_price": "20000000000",
                 "confirmation_count": 12,
                 "timestamp": datetime.now().isoformat(),
-                "note": "Simulated transaction status for demo"
+                "note": "Simulated transaction status for testing"
             }
             
         except Exception as e:

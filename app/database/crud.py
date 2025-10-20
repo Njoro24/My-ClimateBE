@@ -100,6 +100,26 @@ async def get_all_atoms(db_path: str = DB_PATH) -> List[MeTTaAtom]:
                 atoms.append(MeTTaAtom(**dict(row)))
     return atoms
 
+async def get_all_events(db_path: str = DB_PATH) -> List[Event]:
+    """Get all events from database"""
+    events = []
+    async with aiosqlite.connect(db_path) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM events") as cursor:
+            async for row in cursor:
+                events.append(Event(**dict(row)))
+    return events
+
+async def get_all_users(db_path: str = DB_PATH) -> List[User]:
+    """Get all users from database"""
+    users = []
+    async with aiosqlite.connect(db_path) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM users") as cursor:
+            async for row in cursor:
+                users.append(User(**dict(row)))
+    return users
+
 async def create_atom(atom: MeTTaAtom, db_path: str = DB_PATH):
     async with aiosqlite.connect(db_path) as db:
         await db.execute(

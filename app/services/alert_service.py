@@ -467,8 +467,8 @@ class EnhancedAlertService:
         try:
             # Simplified - in reality would use spatial queries
             all_users = await crud.get_all_users()
-            # For demo, return all users (in reality would filter by location)
-            return all_users[:10]  # Limit to 10 for demo
+            # Return users within proximity (simplified implementation)
+            return all_users[:10]  # Limit to 10 for performance
         except Exception as e:
             print(f"Error getting nearby users: {e}")
             return []

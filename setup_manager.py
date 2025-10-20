@@ -17,8 +17,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.database.database import get_db, init_db
 from app.database.migrations import create_tables
-from demo_data_generator import DemoDataGenerator
-from demo_presentation import DemoPresentation
+# Demo imports removed - using production setup only
 
 class SetupManager:
     """Manages the complete setup process for Climate Witness Chain"""
@@ -302,13 +301,13 @@ class SetupManager:
             print("\n Next Steps:")
             print("   1. Start the FastAPI server: python main.py")
             print("   2. Start the frontend dev server: cd frontend && npm run dev")
-            print("   3. Run demo data generator: python demo_data_generator.py")
-            print("   4. Run demo presentation: python demo_presentation.py")
+            print("   3. Test the application: python test_real_features.py")
+            print("   4. Initialize dashboard data: python init_dashboard_data.py")
             
             print("\n Available Commands:")
             print("   • python main.py                    - Start API server")
-            print("   • python demo_data_generator.py    - Generate demo data")
-            print("   • python demo_presentation.py      - Interactive demo")
+            print("   • python test_real_features.py     - Test application features")
+            print("   • python init_dashboard_data.py    - Initialize dashboard")
             print("   • python test_api.py               - Run API tests")
             print("   • python run_metta_tests.py        - Run MeTTa tests")
             
@@ -324,8 +323,8 @@ class SetupManager:
             "next_steps": [
                 "Start API server",
                 "Start frontend server", 
-                "Run demo data generator",
-                "Run demo presentation"
+                "Test application features",
+                "Initialize dashboard data"
             ] if all_success else ["Fix setup issues"]
         }
         

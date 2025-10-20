@@ -386,38 +386,67 @@ async def test_endpoint():
 
 @router.get("/simple-me")
 async def simple_me_endpoint(authorization: str = Header(None)):
-    """Simple /me endpoint for testing"""
+    """Simple /me endpoint that returns unauthenticated state when no token"""
+    # If no authorization header, return unauthenticated state
     if not authorization:
-        return {"error": "No authorization header", "authenticated": False}
+        return {
+            "authenticated": False,
+            "user": None,
+            "message": "No authentication provided"
+        }
     
+    # If invalid format, return unauthenticated
     if not authorization.startswith("Bearer "):
-        return {"error": "Invalid authorization format", "authenticated": False}
+        return {
+            "authenticated": False,
+            "user": None,
+            "message": "Invalid authorization format"
+        }
     
     token = authorization.replace("Bearer ", "")
     
-    # Simple token validation - just check if it starts with access_
-    if not token.startswith("access_"):
-        return {"error": "Invalid token format", "authenticated": False}
+    # If no token or invalid format, return unauthenticated
+    if not token or not token.startswith("access_"):
+        return {
+            "authenticated": False,
+            "user": None,
+            "message": "Invalid or missing token"
+        }
     
-    # Extract user ID from token (simplified)
+    # Try to validate token properly
     try:
-        parts = token.split("_")
-        if len(parts) >= 2:
-            user_id = parts[1]  # Get user ID from token
+        payload = verify_token(token)
+        if payload is None:
             return {
-                "authenticated": True,
-                "user": {
-                    "id": user_id,
-                    "email": "test@example.com",
-                    "first_name": "Test",
-                    "last_name": "User",
-                    "role": "user"
-                }
+                "authenticated": False,
+                "user": None,
+                "message": "Token validation failed"
             }
-    except:
-        pass
-    
-    return {"error": "Token parsing failed", "authenticated": False}
+        
+        # Token is valid, try to get user from database
+        from app.database.database import get_db
+        async with get_db() as db:
+            db.row_factory = aiosqlite.Row
+            user_id = payload.get("sub")
+            async with db.execute("SELECT * FROM users WHERE id = ?", (user_id,)) as cursor:
+                user = await cursor.fetchone()
+                if user:
+                    return {
+                        "authenticated": True,
+                        "user": user_to_dict(user)
+                    }
+                else:
+                    return {
+                        "authenticated": False,
+                        "user": None,
+                        "message": "User not found"
+                    }
+    except Exception as e:
+        return {
+            "authenticated": False,
+            "user": None,
+            "message": f"Authentication error: {str(e)}"
+        }
 
 
 

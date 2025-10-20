@@ -458,8 +458,8 @@ def _extract_decision_factors(reasoning: List[str]) -> List[str]:
         elif "timestamp" in reason.lower():
             factors.append("Timing Validation")
     return factors or ["Standard Criteria"]
-asy
-nc def _generate_detailed_reasoning(
+
+async def _generate_detailed_reasoning(
     decision_type: str, 
     context: Dict[str, Any], 
     system_context: Dict[str, Any],
