@@ -126,7 +126,7 @@ async def get_knowledge_base_stats():
 @router.get("/example-queries")
 async def get_example_queries():
     """
-    Get example natural language queries
+    Get example natural language queries for MeTTa system
     """
     examples = [
         {
@@ -153,6 +153,16 @@ async def get_example_queries():
             "query": "Verify climate event with photo evidence",
             "description": "Run verification logic on events",
             "metta_function": "(auto-verify event_001 user_123 85 90)"
+        },
+        {
+            "query": "Explain insurance payout calculation",
+            "description": "Get transparent explanation of AI decisions",
+            "metta_function": "(explain-payout-calculation event_001)"
+        },
+        {
+            "query": "Assess weather risk for maize farming",
+            "description": "Real-time weather risk assessment",
+            "metta_function": "(assess-weather-risk \"maize\" -1.0 36.0)"
         }
     ]
     

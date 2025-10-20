@@ -14,13 +14,18 @@ from app.database.models import Event, User, MeTTaAtom
 
 @dataclass
 class SimpleInsurancePolicy:
-    """Simple insurance policy for demonstration"""
+    """Enhanced insurance policy with real weather integration"""
     id: str
     user_id: str
     coverage_amount: float
     premium_paid: float
     status: str  # active, expired, claimed
     created_at: datetime
+    crop_type: Optional[str] = "maize"
+    farm_size: Optional[float] = 1.0
+    location: Optional[Dict[str, float]] = None
+    coverage_period_months: Optional[int] = 12
+    risk_assessment: Optional[Dict[str, Any]] = None
     
     def to_dict(self) -> dict:
         return {
@@ -29,7 +34,38 @@ class SimpleInsurancePolicy:
             'coverage_amount': self.coverage_amount,
             'premium_paid': self.premium_paid,
             'status': self.status,
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat(),
+            'crop_type': self.crop_type,
+            'farm_size': self.farm_size,
+            'location': self.location,
+            'coverage_period_months': self.coverage_period_months,
+            'risk_assessment': self.risk_assessment
+        }
+
+@dataclass
+class InsuranceClaim:
+    """Insurance claim record"""
+    id: str
+    policy_id: str
+    user_id: str
+    event_id: str
+    claim_reason: str
+    estimated_damage: Optional[float]
+    status: str  # pending, approved, rejected
+    submitted_at: datetime
+    processed_at: Optional[datetime] = None
+    
+    def to_dict(self) -> dict:
+        return {
+            'id': self.id,
+            'policy_id': self.policy_id,
+            'user_id': self.user_id,
+            'event_id': self.event_id,
+            'claim_reason': self.claim_reason,
+            'estimated_damage': self.estimated_damage,
+            'status': self.status,
+            'submitted_at': self.submitted_at.isoformat(),
+            'processed_at': self.processed_at.isoformat() if self.processed_at else None
         }
 
 @dataclass
@@ -69,6 +105,20 @@ class SimpleInsuranceService:
     
     async def create_simple_policy(self, user_id: str) -> dict:
         """Create a simple insurance policy for a user"""
+        return await self.create_enhanced_policy(user_id)
+    
+    async def create_enhanced_policy(
+        self, 
+        user_id: str,
+        crop_type: str = "maize",
+        farm_size: float = 1.0,
+        coverage_amount: float = None,
+        location: Dict[str, float] = None,
+        coverage_period_months: int = 12,
+        premium_adjustment: float = 1.0,
+        risk_assessment: Dict[str, Any] = None
+    ) -> dict:
+        """Create an enhanced insurance policy with weather risk assessment"""
         try:
             # Check if user already has an active policy
             existing_policies = await self.get_user_policies(user_id)
@@ -95,36 +145,202 @@ class SimpleInsuranceService:
                     'error': 'Minimum trust score of 60 required for insurance'
                 }
             
-            # Create simple policy
+            # Calculate coverage and premium based on farm size and risk
+            final_coverage = coverage_amount or (self.base_coverage * farm_size)
+            base_premium = self.base_premium * farm_size
+            final_premium = base_premium * premium_adjustment
+            
+            # Create enhanced policy
             policy_id = str(uuid.uuid4())
             policy = SimpleInsurancePolicy(
                 id=policy_id,
                 user_id=user_id,
-                coverage_amount=self.base_coverage,
-                premium_paid=self.base_premium,
+                coverage_amount=final_coverage,
+                premium_paid=final_premium,
                 status='active',
-                created_at=datetime.now()
+                created_at=datetime.now(),
+                crop_type=crop_type,
+                farm_size=farm_size,
+                location=location,
+                coverage_period_months=coverage_period_months,
+                risk_assessment=risk_assessment
             )
             
             # Store policy in database
             await self._store_policy(policy)
             
             # Add policy to MeTTa knowledge base
-            policy_atom = f'(insurance-policy {user_id} {self.base_coverage} {self.base_premium} "active")'
+            policy_atom = f'(insurance-policy {user_id} {final_coverage} {final_premium} "active" "{crop_type}" {farm_size})'
             self.metta_service.add_to_atom_space('governance', policy_atom)
             
             return {
                 'success': True,
                 'policy': policy.to_dict(),
-                'message': f'Insurance policy created! Coverage: ${self.base_coverage}, Premium: ${self.base_premium}'
+                'message': f'Enhanced insurance policy created! Coverage: ${final_coverage}, Premium: ${final_premium}'
             }
             
         except Exception as e:
-            print(f"Error creating insurance policy: {e}")
+            print(f"Error creating enhanced insurance policy: {e}")
             return {
                 'success': False,
                 'error': str(e)
             }
+    
+    async def submit_claim(
+        self,
+        user_id: str,
+        policy_id: str,
+        event_id: str,
+        claim_reason: str,
+        estimated_damage: float = None
+    ) -> dict:
+        """Submit an insurance claim"""
+        try:
+            # Verify policy exists and is active
+            policies = await self.get_user_policies(user_id)
+            policy = None
+            for p in policies:
+                if p.id == policy_id and p.status == 'active':
+                    policy = p
+                    break
+            
+            if not policy:
+                return {
+                    'success': False,
+                    'error': 'Active policy not found'
+                }
+            
+            # Verify event exists and is verified
+            event = await crud.get_event_by_id(event_id)
+            if not event:
+                return {
+                    'success': False,
+                    'error': 'Event not found'
+                }
+            
+            if event.verification_status != 'verified':
+                return {
+                    'success': False,
+                    'error': 'Event must be verified to submit claim'
+                }
+            
+            # Create claim
+            claim_id = str(uuid.uuid4())
+            claim = InsuranceClaim(
+                id=claim_id,
+                policy_id=policy_id,
+                user_id=user_id,
+                event_id=event_id,
+                claim_reason=claim_reason,
+                estimated_damage=estimated_damage,
+                status='pending',
+                submitted_at=datetime.now()
+            )
+            
+            # Store claim
+            await self._store_claim(claim)
+            
+            # Add claim to MeTTa knowledge base
+            claim_atom = f'(insurance-claim {user_id} "{event_id}" "{claim_reason}" "pending")'
+            self.metta_service.add_to_atom_space('governance', claim_atom)
+            
+            return {
+                'success': True,
+                'claim': claim.to_dict(),
+                'message': 'Insurance claim submitted successfully'
+            }
+            
+        except Exception as e:
+            print(f"Error submitting claim: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    async def get_user_claims(self, user_id: str) -> List[InsuranceClaim]:
+        """Get all insurance claims for a user"""
+        try:
+            claims = []
+            atoms = await crud.get_all_atoms()
+            
+            for atom in atoms:
+                if atom.atom_type == 'insurance_claim':
+                    claim_data = json.loads(atom.atom_content)
+                    if claim_data.get('user_id') == user_id:
+                        claim = InsuranceClaim(
+                            id=claim_data['id'],
+                            policy_id=claim_data['policy_id'],
+                            user_id=claim_data['user_id'],
+                            event_id=claim_data['event_id'],
+                            claim_reason=claim_data['claim_reason'],
+                            estimated_damage=claim_data.get('estimated_damage'),
+                            status=claim_data['status'],
+                            submitted_at=datetime.fromisoformat(claim_data['submitted_at']),
+                            processed_at=datetime.fromisoformat(claim_data['processed_at']) if claim_data.get('processed_at') else None
+                        )
+                        claims.append(claim)
+            
+            return sorted(claims, key=lambda x: x.submitted_at, reverse=True)
+            
+        except Exception as e:
+            print(f"Error getting user claims: {e}")
+            return []
+    
+    async def generate_policy_recommendations(
+        self,
+        user,
+        location: Dict[str, float] = None,
+        crop_type: str = "maize",
+        risk_assessment: Dict[str, Any] = None
+    ) -> List[Dict[str, Any]]:
+        """Generate personalized policy recommendations"""
+        try:
+            recommendations = []
+            
+            # Base recommendation
+            base_coverage = self.base_coverage
+            base_premium = self.base_premium
+            
+            # Adjust based on trust score
+            trust_multiplier = min(1.2, max(0.8, user.trust_score / 100))
+            
+            # Adjust based on risk assessment
+            risk_multiplier = 1.0
+            if risk_assessment:
+                risk_multiplier = risk_assessment.get('risk_multiplier', 1.0)
+            
+            # Generate different coverage options
+            coverage_options = [
+                {"name": "Basic", "multiplier": 0.5, "description": "Essential coverage for small farms"},
+                {"name": "Standard", "multiplier": 1.0, "description": "Comprehensive coverage for medium farms"},
+                {"name": "Premium", "multiplier": 2.0, "description": "Maximum coverage for large operations"}
+            ]
+            
+            for option in coverage_options:
+                coverage = base_coverage * option["multiplier"]
+                premium = base_premium * option["multiplier"] * trust_multiplier * risk_multiplier
+                
+                recommendations.append({
+                    "plan_name": f"{option['name']} Climate Insurance",
+                    "description": option["description"],
+                    "coverage_amount": round(coverage, 2),
+                    "premium": round(premium, 2),
+                    "crop_type": crop_type,
+                    "trust_discount": round((1 - trust_multiplier) * 100, 1) if trust_multiplier < 1 else 0,
+                    "risk_adjustment": round((risk_multiplier - 1) * 100, 1),
+                    "features": [
+                        "Verified climate event coverage",
+                        "Automated payout processing",
+                        "Community-based verification",
+                        "MeTTa AI risk assessment"
+                    ]
+                })
+            
+            return recommendations
+            
+        except Exception as e:
+            print(f"Error generating recommendations: {e}")
+            return []
     
     async def check_payout_eligibility(self, user_id: str, event_id: str) -> dict:
         """Check if user is eligible for insurance payout"""
@@ -383,6 +599,20 @@ class SimpleInsuranceService:
             await crud.create_atom(atom)
         except Exception as e:
             print(f"Error storing payout: {e}")
+    
+    async def _store_claim(self, claim: InsuranceClaim):
+        """Store insurance claim in database"""
+        try:
+            atom = MeTTaAtom(
+                id=claim.id,
+                event_id=claim.event_id,
+                atom_type='insurance_claim',
+                atom_content=json.dumps(claim.to_dict()),
+                created_at=datetime.now()
+            )
+            await crud.create_atom(atom)
+        except Exception as e:
+            print(f"Error storing claim: {e}")
     
     async def _update_policy_status(self, policy_id: str, new_status: str):
         """Update policy status"""
