@@ -7,6 +7,14 @@ from app.database.crud import get_event_by_id, get_user_by_id, get_all_events, g
 import logging
 import json
 
+# Import GPT-OSS service for enhanced explanations
+try:
+    from app.services.gpt_oss_service import GPTOSSService
+    GPT_OSS_AVAILABLE = True
+except ImportError:
+    GPT_OSS_AVAILABLE = False
+    print("GPT-OSS service not available - using fallback explanations")
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -33,7 +41,7 @@ class BiasAnalysisRequest(BaseModel):
 
 @router.post("/explain-decision")
 async def explain_ai_decision(request: ExplainableDecisionRequest):
-    """Generate detailed explanations for AI decisions using MeTTa reasoning and real data analysis"""
+    """Generate detailed explanations for AI decisions using MeTTa reasoning and enhanced GPT-OSS analysis"""
     try:
         kb = ClimateWitnessKnowledgeBase()
         
@@ -44,13 +52,34 @@ async def explain_ai_decision(request: ExplainableDecisionRequest):
         explanation_query = f'!(explain-decision "{request.decision_type}" "{request.explanation_level}")'
         metta_result = kb.run_metta_function(explanation_query)
         
+        # Enhanced explanation with GPT-OSS if available
+        if GPT_OSS_AVAILABLE:
+            try:
+                gpt_service = GPTOSSService()
+                enhanced_reasoning = await gpt_service.enhanced_metta_reasoning(
+                    query=explanation_query,
+                    context={
+                        "decision_type": request.decision_type,
+                        "system_context": system_context,
+                        "explanation_level": request.explanation_level,
+                        **request.context
+                    }
+                )
+                gpt_enhancement = enhanced_reasoning.get("enhanced_reasoning", "")
+            except Exception as e:
+                logger.warning(f"GPT-OSS enhancement failed, using fallback: {e}")
+                gpt_enhancement = None
+        else:
+            gpt_enhancement = None
+        
         # Generate comprehensive explanation with real data
         explanation = await _generate_comprehensive_explanation(
             request.decision_type, 
             request.context, 
             system_context,
             metta_result,
-            request.explanation_level
+            request.explanation_level,
+            gpt_enhancement
         )
         
         return {
@@ -59,9 +88,11 @@ async def explain_ai_decision(request: ExplainableDecisionRequest):
             "explanation_level": request.explanation_level,
             "explanation": explanation,
             "metta_reasoning": [str(r) for r in metta_result] if metta_result else [],
+            "gpt_oss_enhancement": gpt_enhancement if GPT_OSS_AVAILABLE else "Not available",
             "system_context": system_context,
             "timestamp": datetime.utcnow().isoformat(),
-            "confidence_score": explanation["confidence"]
+            "confidence_score": explanation["confidence"],
+            "enhanced_ai": GPT_OSS_AVAILABLE
         }
         
     except Exception as e:
@@ -345,7 +376,8 @@ async def _generate_comprehensive_explanation(
     context: Dict[str, Any], 
     system_context: Dict[str, Any],
     metta_result: List,
-    explanation_level: str
+    explanation_level: str,
+    gpt_enhancement: Optional[str] = None
 ) -> Dict[str, Any]:
     """Generate comprehensive explanation with real data"""
     
@@ -356,7 +388,8 @@ async def _generate_comprehensive_explanation(
         "confidence": await _calculate_real_confidence(context, system_context),
         "citizen_explanation": _generate_citizen_explanation(decision_type, explanation_level),
         "technical_details": await _generate_technical_explanation(decision_type, context, system_context),
-        "data_sources": await _identify_data_sources(decision_type, context)
+        "data_sources": await _identify_data_sources(decision_type, context),
+        "gpt_oss_insights": gpt_enhancement if gpt_enhancement else "Standard reasoning applied"
     }
     
     return explanation
