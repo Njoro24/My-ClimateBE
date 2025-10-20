@@ -20,7 +20,7 @@ async def initialize_database():
         print("🔧 Initializing database for Railway...")
         
         # Use proper database migrations
-        from app.database.migrations import create_tables, insert_sample_data
+        from app.database.migrations import create_tables, seed_sample_data
         
         # Get database path
         db_path = os.getenv('DATABASE_URL', './climate_witness.db')
@@ -39,7 +39,7 @@ async def initialize_database():
                 
             if count == 0:
                 print("🔧 Creating sample data...")
-                await insert_sample_data(db_path)
+                await seed_sample_data(db_path)
                 print("✅ Sample data created")
             else:
                 print(f"✅ Database ready with {count} users")
