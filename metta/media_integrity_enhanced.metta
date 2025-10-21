@@ -365,3 +365,110 @@
 (= (calculate-comprehensive-credibility $source_cred $content_qual $factual_acc $expert_val $community_cons $cross_platform)
    (+ (* $source_cred 0.2) (* $content_qual 0.15) (* $factual_acc 0.25) 
       (* $expert_val 0.2) (* $community_cons 0.15) (* $cross_platform 0.05)))
+
+; =============================================================================
+; VERIFICATION NETWORK MEMBERSHIP FUNCTIONS
+; =============================================================================
+
+; Check if user can join verification network (trust score >= 75)
+(= (can-join-verification-network $user_id)
+   (let* (
+       ($trust_score (get-user-trust-score $user_id))
+       ($is_eligible (>= $trust_score 75))
+       ($current_verifier_status (is-current-verifier $user_id))
+       ($verification_history (get-user-verification-history $user_id))
+       ($account_age (get-account-age-days $user_id))
+   )
+   (verification-eligibility-result $user_id $is_eligible $trust_score 
+                                  $current_verifier_status $verification_history $account_age)))
+
+; Join verification network process with requirements check
+(= (join-verification-network $user_id)
+   (let* (
+       ($eligibility_check (can-join-verification-network $user_id))
+       ($is_eligible (get-eligibility-status $eligibility_check))
+       ($trust_score (get-trust-score-from-check $eligibility_check))
+       
+       ($join_result (if $is_eligible
+                        (add-to-verification-network $user_id)
+                        (join-rejected-insufficient-trust $user_id $trust_score)))
+       
+       ($verifier_badge (if $is_eligible (assign-verifier-badge $user_id) null))
+       ($training_required (if $is_eligible (assign-training-modules $user_id) null))
+   )
+   (join-network-result $user_id $join_result $is_eligible $verifier_badge $training_required)))
+
+; Get verification network statistics for community display
+(= (get-verification-network-stats)
+   (let* (
+       ($total_verifiers (count-total-verifiers))
+       ($expert_verifiers (count-expert-verifiers))
+       ($citizen_verifiers (- $total_verifiers $expert_verifiers))
+       ($verified_content (count-verified-content))
+       ($misinformation_detected (count-detected-misinformation))
+       ($countries_represented (count-countries-with-verifiers))
+       ($trust_network_strength (calculate-network-trust-strength))
+       ($active_verifications (count-active-verifications))
+   )
+   (network-stats-result $total_verifiers $expert_verifiers $citizen_verifiers 
+                        $verified_content $misinformation_detected $countries_represented 
+                        $trust_network_strength $active_verifications)))
+
+; Assess user's path to verification network eligibility
+(= (assess-path-to-verification $user_id)
+   (let* (
+       ($current_trust (get-user-trust-score $user_id))
+       ($required_trust 75)
+       ($trust_gap (- $required_trust $current_trust))
+       
+       ($improvement_suggestions (generate-trust-improvement-suggestions $user_id $trust_gap))
+       ($estimated_timeline (estimate-trust-building-timeline $user_id $trust_gap))
+       ($next_actions (recommend-next-actions $user_id $current_trust))
+   )
+   (verification-path-assessment $user_id $current_trust $trust_gap 
+                                $improvement_suggestions $estimated_timeline $next_actions)))
+
+; Community verification with trust score weighting
+(= (weighted-community-verification $media_id $verifier_responses)
+   (let* (
+       ; Weight responses by verifier trust scores
+       ($weighted_responses (map weight-response-by-trust $verifier_responses))
+       ($total_weight (sum-response-weights $weighted_responses))
+       ($weighted_consensus (calculate-weighted-consensus $weighted_responses $total_weight))
+       
+       ; Quality assessment of verification process
+       ($verifier_diversity (assess-verifier-diversity $verifier_responses))
+       ($consensus_quality (assess-consensus-quality $weighted_consensus $verifier_diversity))
+   )
+   (weighted-verification-result $media_id $weighted_consensus $consensus_quality 
+                                $verifier_diversity $total_weight)))
+
+; Helper functions for verification network
+(= (get-eligible-verifiers $min_trust_score)
+   (filter-users-by-trust-score $min_trust_score))
+
+(= (select-qualified-participants $eligible_verifiers $max_count)
+   (take $max_count (sort-by-trust-score $eligible_verifiers)))
+
+(= (weight-response-by-trust $response)
+   (let* (
+       ($verifier_id (get-verifier-id $response))
+       ($trust_score (get-user-trust-score $verifier_id))
+       ($weight (/ $trust_score 100)) ; Normalize trust score to weight
+   )
+   (weighted-response $response $weight)))
+
+(= (generate-trust-improvement-suggestions $user_id $trust_gap)
+   (cond
+     ((> $trust_gap 50) ["Submit accurate climate reports", "Participate in community discussions", "Complete verification training"])
+     ((> $trust_gap 25) ["Increase reporting frequency", "Improve report quality", "Engage with community feedback"])
+     ((> $trust_gap 10) ["Maintain consistent activity", "Help verify others' reports", "Share expertise"])
+     (else ["Continue current activities", "Maintain high standards"])))
+
+(= (estimate-trust-building-timeline $user_id $trust_gap)
+   (let* (
+       ($current_activity_level (get-user-activity-level $user_id))
+       ($base_timeline_weeks (/ $trust_gap 2)) ; Assume 2 points per week baseline
+       ($adjusted_timeline (/ $base_timeline_weeks $current_activity_level))
+   )
+   (max 2 (min 52 $adjusted_timeline)))) ; Between 2 weeks and 1 year
