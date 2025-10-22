@@ -1,7 +1,4 @@
-"""
-Community Verification API Routes
-Handles community-based verification endpoints for the Climate Witness DAO
-"""
+
 
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Optional
@@ -10,11 +7,7 @@ from pydantic import BaseModel
 from app.services.community_verification_service import CommunityVerificationService
 
 router = APIRouter()
-
-# Global community verification service instance
 community_verification_service = CommunityVerificationService()
-
-# Request/Response Models
 class VerificationSubmissionRequest(BaseModel):
     event_id: str
     verifier_id: str

@@ -4,13 +4,10 @@ from typing import List, Dict
 from app.services.metta_service import MeTTaService
 
 router = APIRouter()
-
-# Global MeTTa service instance
 metta_service = MeTTaService()
 
 @router.get("/example-queries")
 async def get_example_queries():
-    """Get example MeTTa queries"""
     return {
         "success": True,
         "example_queries": [

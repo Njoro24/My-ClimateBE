@@ -13,20 +13,15 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, Future
 import asyncio
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class BlockchainService:
-    """Service for blockchain and smart contract interactions with improved thread management"""
     
     def __init__(self, simulation_mode: bool = False):
-        # Polygon Mumbai testnet configuration
-        self.rpc_url = "https://rpc-mumbai.maticvigil.com"  # Public RPC
+        self.rpc_url = "https://rpc-mumbai.maticvigil.com"
         self.chain_id = 80001
         self.simulation_mode = simulation_mode
-        
-        # Initialize Web3
         self.w3 = Web3(Web3.HTTPProvider(self.rpc_url))
         
         # Add PoA middleware for Polygon

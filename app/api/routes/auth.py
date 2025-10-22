@@ -1,7 +1,4 @@
-"""
-Updated Authentication routes for Climate Witness Chain
-Combines JWT token system with simplified database approach
-"""
+
 
 from fastapi import APIRouter, HTTPException, Depends, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -17,17 +14,12 @@ import secrets
 from app.database.database import get_db
 from app.utils.security import hash_password, verify_password
 
-router = APIRouter(
-    tags=["auth"]
-)
+router = APIRouter(tags=["auth"])
 security = HTTPBearer()
 
-# Simple Token Configuration
 SECRET_KEY = "climate_witness_chain_secret_key_change_in_production"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60  # Increased from 30 to 60 minutes
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_DAYS = 7
-
-# Pydantic models
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
@@ -37,11 +29,11 @@ class UserRegister(BaseModel):
     password: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    firstName: Optional[str] = None  # Accept frontend format
-    lastName: Optional[str] = None   # Accept frontend format
-    role: str = 'user'  # 'user' or 'researcher'
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    role: str = 'user'
     location_region: Optional[str] = None
-    locationRegion: Optional[str] = None  # Accept frontend format
+    locationRegion: Optional[str] = None
     
     def get_first_name(self) -> str:
         return self.first_name or self.firstName or ""

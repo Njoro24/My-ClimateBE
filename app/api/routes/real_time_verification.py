@@ -6,7 +6,6 @@ from app.services.metta_service import ClimateWitnessKnowledgeBase
 import logging
 import json
 
-# Import GPT-OSS service for enhanced analysis
 try:
     from app.services.gpt_oss_service import GPTOSSService
     GPT_OSS_AVAILABLE = True
@@ -28,15 +27,11 @@ class ConfidenceUpdateRequest(BaseModel):
 
 @router.post("/calculate-confidence")
 async def calculate_real_time_confidence(request: RealTimeVerificationRequest):
-    """Calculate real-time verification confidence using MeTTa reasoning"""
     try:
         kb = ClimateWitnessKnowledgeBase()
         
-        # Extract event data
         event_data = request.event_data
         user_trust = request.user_trust_score
-        
-        # Run MeTTa confidence calculation
         confidence_query = f'''
         !(calculate-real-time-confidence 
           {json.dumps(event_data)} 
@@ -45,8 +40,6 @@ async def calculate_real_time_confidence(request: RealTimeVerificationRequest):
         '''
         
         metta_result = kb.run_metta_function(confidence_query)
-        
-        # Calculate individual factor scores
         factors = await _calculate_verification_factors(event_data, kb)
         
         # Calculate overall confidence

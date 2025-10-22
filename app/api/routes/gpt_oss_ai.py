@@ -1,7 +1,4 @@
-"""
-GPT-OSS-20B API Routes for Climate Witness Chain
-Enhanced AI reasoning, explainable decisions, and advanced function calling
-"""
+
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -12,8 +9,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-# Request/Response Models
 class EnhancedMeTTaRequest(BaseModel):
     query: str
     context: Optional[Dict[str, Any]] = None

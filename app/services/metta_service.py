@@ -1,8 +1,4 @@
-"""
-MeTTa Service for Climate Witness Chain
-Handles MeTTa knowledge atoms, verification logic, and reasoning using proper Hyperon API
-Fixed version with improved error handling and serialization
-"""
+
 
 import json
 import uuid
@@ -17,7 +13,6 @@ try:
 except ImportError:
     print("Warning: Hyperon not available, MeTTa service will use fallback mode")
     HYPERON_AVAILABLE = False
-    # Create dummy classes for compatibility
     class MeTTa:
         def __init__(self, *args, **kwargs):
             pass
@@ -41,12 +36,10 @@ except ImportError:
 from app.database.crud import *
 from app.database.models import MeTTaAtom, Event, User
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class ClimateWitnessKnowledgeBase:
-    """MeTTa Knowledge Base for Climate Witness Chain using proper Hyperon API with advanced features"""
     
     def __init__(self):
         """Initialize MeTTa runner with climate knowledge and multiple atom spaces"""

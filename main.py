@@ -13,31 +13,24 @@ import json
 import logging
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
-
-# Set up logging for debugging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Global thread safety
 _initialized = False
 _init_lock = threading.Lock()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     global _initialized
     with _init_lock:
         if not _initialized:
-            print(" Starting Climate Witness Chain API...")
+            print("Starting Climate Witness Chain API...")
             
-            # Initialize database tables for climate models
             from app.models.database import create_tables
             create_tables()
             print("Climate database tables initialized")
             
-            # Start background cleanup task
             from app.services.climate_service import ClimateService
             climate_service = ClimateService()
             await climate_service.cleanup_old_data()
@@ -47,10 +40,8 @@ async def lifespan(app: FastAPI):
         else:
             print("API already initialized, skipping startup...")
     yield
-    # Shutdown
     print("Shutting down Climate Witness Chain API...")
 
-# Create FastAPI app ONCE
 app = FastAPI(
     title="Climate Witness Chain API",
     description="Backend API for community-driven climate data collection using MeTTa knowledge atoms",
@@ -58,7 +49,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS configuration - SINGLE MIDDLEWARE ONLY
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -67,7 +57,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Payment models
 class MpesaPaymentRequest(BaseModel):
     phone: str
     amount: float
@@ -88,7 +77,6 @@ except ImportError as e:
     print(f"Blockchain service disabled: {e}")
     BLOCKCHAIN_AVAILABLE = False
 
-# Import the climate models and services we created
 from app.models.database import get_db
 from app.services.climate_service import ClimateService
 from app.models.climatemodels import (
@@ -99,10 +87,7 @@ from app.models.climatemodels import (
     ReportStatsResponse
 )
 
-# Initialize climate service
 climate_service = ClimateService()
-
-# handle endpoints
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(events.router, prefix="/api/events", tags=["events"])
 app.include_router(metta.router, prefix="/api/metta", tags=["metta"])
@@ -119,16 +104,10 @@ app.include_router(contact.router, prefix="/api/contact", tags=["contact"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 app.include_router(researcher.router, prefix="/api/researcher", tags=["researcher"])
-
-# Enhanced AI and Civic Decision-Making Routes
 app.include_router(explainable_ai.router, prefix="/api/explainable-ai", tags=["explainable-ai"])
 app.include_router(media_integrity.router, prefix="/api/media-integrity", tags=["media-integrity"])
 app.include_router(civic_decision_making.router, prefix="/api/civic-decisions", tags=["civic-decision-making"])
-
-# Real-Time Verification Confidence Routes
 app.include_router(real_time_verification.router, prefix="/api/real-time-verification", tags=["real-time-verification"])
-
-# GPT-OSS-20B Enhanced AI Routes
 app.include_router(gpt_oss_ai.router, prefix="/api/gpt-oss", tags=["gpt-oss-ai"])
 
 if BLOCKCHAIN_AVAILABLE:
@@ -140,10 +119,8 @@ else:
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# M-Pesa Payment Endpoints
 @app.post("/api/payments/mpesa/initiate", response_model=PaymentResponse, tags=["payments"])
 async def initiate_mpesa_payment(payment_request: MpesaPaymentRequest):
-    """Initiate M-Pesa STK Push payment"""
     try:
         logger.info(f"Received payment request: {payment_request.dict()}")
         

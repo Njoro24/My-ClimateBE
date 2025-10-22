@@ -7,7 +7,6 @@ from app.database.crud import get_event_by_id, get_user_by_id, get_all_events, g
 import logging
 import json
 
-# Import GPT-OSS service for enhanced explanations
 try:
     from app.services.gpt_oss_service import GPTOSSService
     GPT_OSS_AVAILABLE = True
@@ -36,16 +35,14 @@ class TrustScoreExplanationRequest(BaseModel):
     user_id: str
 
 class BiasAnalysisRequest(BaseModel):
-    analysis_type: str  # "demographic", "geographic", "temporal"
+    analysis_type: str
     parameters: Dict[str, Any] = {}
 
 @router.post("/explain-decision")
 async def explain_ai_decision(request: ExplainableDecisionRequest):
-    """Generate detailed explanations for AI decisions using cutting-edge MeTTa reasoning and GPT-OSS analysis"""
     try:
         kb = ClimateWitnessKnowledgeBase()
         
-        # Get real system data for context with advanced metrics
         system_context = await _get_advanced_system_context(request.decision_type, request.context)
         
         # Use enhanced MeTTa with quantum-resistant cryptography

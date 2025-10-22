@@ -5,8 +5,6 @@ from pydantic import BaseModel
 from app.services.user_service import UserService
 
 router = APIRouter()
-
-# Global user service instance
 user_service = UserService()
 
 class CreateUserRequest(BaseModel):
@@ -20,7 +18,6 @@ class UpdateTrustScoreRequest(BaseModel):
 
 @router.post("/")
 async def create_user(request: CreateUserRequest, crud = None):
-    """Create a new user"""
     try:
         user = await user_service.create_user(
             wallet_address=request.wallet_address,

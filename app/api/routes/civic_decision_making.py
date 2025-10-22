@@ -1,7 +1,4 @@
-"""
-Enhanced Civic Decision-Making API Routes for Climate Witness Chain
-Real data integration for transparent, AI-assisted democratic decision-making
-"""
+
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -16,7 +13,6 @@ import logging
 import statistics
 from collections import defaultdict
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 

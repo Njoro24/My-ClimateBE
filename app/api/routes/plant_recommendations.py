@@ -6,8 +6,6 @@ from datetime import datetime
 import json
 
 router = APIRouter()
-
-# Pydantic models for plant recommendations
 class PlantRecommendationRequest(BaseModel):
     location: str
     latitude: Optional[float] = None
@@ -48,7 +46,6 @@ class PlantRecommendationResponse(BaseModel):
     recommendations: List[PlantRecommendation]
     timestamp: datetime
 
-# Mock data for Kenyan indigenous plants
 KENYAN_PLANTS_DATABASE = [
     {
         "id": 1,
@@ -228,18 +225,12 @@ KENYAN_PLANTS_DATABASE = [
 ]
 
 async def get_climate_data(location: str) -> ClimateData:
-    """
-    Get real climate data for Kenyan locations based on meteorological data.
-    Uses actual average climate conditions for different regions.
-    """
     location_lower = location.lower()
-    
-    # Real climate data for major Kenyan cities/regions
     if "nairobi" in location_lower:
         return ClimateData(
-            temperature=19.3,  # Average annual temperature
+            temperature=19.3,
             humidity=67,
-            rainfall=869,      # Annual rainfall in mm
+            rainfall=869,
             season="wet" if datetime.now().month in [3,4,5,10,11,12] else "dry",
             soilType="clay loam",
             elevation=1795

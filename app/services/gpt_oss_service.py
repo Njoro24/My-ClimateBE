@@ -1,8 +1,4 @@
-"""
-GPT-OSS-20B Service for Climate Witness Chain
-Integrates OpenAI's gpt-oss-20b model for enhanced reasoning, MeTTa processing, and explainable AI
-Works alongside existing MeTTa service without replacing it
-"""
+
 
 import os
 import json
@@ -13,15 +9,12 @@ import openai
 from app.services.metta_service import ClimateWitnessKnowledgeBase
 from app.database.crud import get_event_by_id, get_user_by_id
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class GPTOSSService:
-    """GPT-OSS-20B service for enhanced AI reasoning and explainable decisions"""
     
     def __init__(self):
-        """Initialize GPT-OSS service with API configuration"""
         self.client = openai.OpenAI(
             api_key=os.environ.get("ASI_API_KEY", "your-api-key-here"),
             base_url="https://inference.asicloud.cudos.org/v1"

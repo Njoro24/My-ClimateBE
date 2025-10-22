@@ -12,7 +12,6 @@ try:
 except ImportError:
     print("Warning: Hyperon not available, MeTTa functionality will be limited")
     HYPERON_AVAILABLE = False
-    # Create a dummy Atom class for compatibility
     class Atom:
         def __init__(self, *args, **kwargs):
             pass
@@ -41,13 +40,11 @@ from app.services.metta_service import MeTTaService
 
 router = APIRouter()
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @router.get("/user/{user_id}")
 async def get_user_events(user_id: str):
-    """Get events created by a specific user"""
     return {
         "events": []
     }
