@@ -9,6 +9,13 @@ from app.services.metta_service import ClimateWitnessKnowledgeBase
 from app.database.crud import get_event_by_id, get_user_by_id, get_all_events, get_all_users
 import logging
 
+try:
+    from app.services.gpt_oss_service import GPTOSSService
+    GPT_OSS_AVAILABLE = True
+except ImportError:
+    GPT_OSS_AVAILABLE = False
+    print("GPT-OSS service not available - using MeTTa only")
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -293,24 +300,69 @@ async def analyze_reasoning_bias(session_id: str):
 # Helper Functions
 
 async def _process_reasoning_result(metta_result, session_id, issue, stakeholders, evidence, user_query, user_type):
-    """Process MeTTa reasoning result into structured format"""
+    """Process MeTTa reasoning result into structured format with GPT-OSS enhancement"""
     
     # Extract reasoning steps from MeTTa result
     reasoning_steps = []
     
-    if metta_result:
+    # Enhanced processing with GPT-OSS if available
+    if GPT_OSS_AVAILABLE and metta_result:
+        try:
+            gpt_service = GPTOSSService()
+            
+            # Get enhanced reasoning for each MeTTa result
+            for i, result in enumerate(metta_result):
+                enhanced_reasoning = await gpt_service.enhanced_metta_reasoning(
+                    query=f"Explain reasoning step: {str(result)}",
+                    context={
+                        "issue": issue,
+                        "stakeholders": stakeholders,
+                        "evidence": evidence,
+                        "step_number": i + 1,
+                        "user_type": user_type
+                    }
+                )
+                
+                step = {
+                    "step_number": i + 1,
+                    "step_type": f"Enhanced Reasoning Step {i + 1}",
+                    "content": str(result),
+                    "explanation": enhanced_reasoning.get("enhanced_reasoning", str(result)),
+                    "metta_result": str(result),
+                    "gpt_oss_enhancement": enhanced_reasoning.get("enhanced_reasoning"),
+                    "confidence": enhanced_reasoning.get("confidence_score", 0.8 + (i * 0.02)),
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+                reasoning_steps.append(step)
+                
+        except Exception as e:
+            logger.error(f"GPT-OSS enhancement failed: {e}")
+            # Fallback to basic MeTTa processing
+            for i, result in enumerate(metta_result):
+                step = {
+                    "step_number": i + 1,
+                    "step_type": f"MeTTa Reasoning Step {i + 1}",
+                    "content": str(result),
+                    "explanation": await _generate_step_explanation(str(result), user_type),
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "confidence": 0.8 + (i * 0.02)
+                }
+                reasoning_steps.append(step)
+    
+    elif metta_result:
+        # Basic MeTTa processing when GPT-OSS not available
         for i, result in enumerate(metta_result):
             step = {
                 "step_number": i + 1,
-                "step_type": f"reasoning_step_{i + 1}",
+                "step_type": f"MeTTa Reasoning Step {i + 1}",
                 "content": str(result),
                 "explanation": await _generate_step_explanation(str(result), user_type),
                 "timestamp": datetime.utcnow().isoformat(),
-                "confidence": 0.8 + (i * 0.02)  # Increasing confidence through steps
+                "confidence": 0.8 + (i * 0.02)
             }
             reasoning_steps.append(step)
     
-    # Generate comprehensive session data
+    # Generate comprehensive session data with real MeTTa/GPT-OSS integration
     session_data = {
         "session_id": session_id,
         "issue": issue,
@@ -326,24 +378,61 @@ async def _process_reasoning_result(metta_result, session_id, issue, stakeholder
         "interactions": [],
         "alternative_proposals": [],
         "created_at": datetime.utcnow().isoformat(),
-        "status": "active"
+        "status": "active",
+        "metta_available": len(reasoning_steps) > 0,
+        "gpt_oss_available": GPT_OSS_AVAILABLE,
+        "enhanced_reasoning": GPT_OSS_AVAILABLE and len(reasoning_steps) > 0
     }
     
     return session_data
 
 async def _process_query_response(metta_result, query, user_type, session):
-    """Process MeTTa query response"""
+    """Process MeTTa query response with GPT-OSS enhancement"""
     
     if not metta_result:
         return await _generate_fallback_query_response(query, user_type, session)
     
+    # Enhanced query processing with GPT-OSS
+    if GPT_OSS_AVAILABLE:
+        try:
+            gpt_service = GPTOSSService()
+            
+            enhanced_response = await gpt_service.enhanced_metta_reasoning(
+                query=f"Answer user question: {query}",
+                context={
+                    "metta_results": [str(r) for r in metta_result],
+                    "session_context": session,
+                    "user_type": user_type,
+                    "reasoning_steps": session.get("reasoning_steps", [])
+                }
+            )
+            
+            response = {
+                "query": query,
+                "answer": enhanced_response.get("enhanced_reasoning", str(metta_result[0])),
+                "explanation": await _generate_query_explanation(query, metta_result, user_type),
+                "metta_results": [str(r) for r in metta_result],
+                "gpt_oss_enhancement": enhanced_response.get("enhanced_reasoning"),
+                "related_steps": await _find_related_reasoning_steps(query, session["reasoning_steps"]),
+                "confidence": enhanced_response.get("confidence_score", 0.85),
+                "follow_up_questions": await _generate_follow_up_questions(query, metta_result),
+                "model_used": "GPT-OSS-20B + MeTTa"
+            }
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"GPT-OSS query enhancement failed: {e}")
+    
+    # Fallback to basic MeTTa response
     response = {
         "query": query,
         "answer": str(metta_result[0]) if metta_result else "No specific answer available",
         "explanation": await _generate_query_explanation(query, metta_result, user_type),
         "related_steps": await _find_related_reasoning_steps(query, session["reasoning_steps"]),
         "confidence": 0.85,
-        "follow_up_questions": await _generate_follow_up_questions(query, metta_result)
+        "follow_up_questions": await _generate_follow_up_questions(query, metta_result),
+        "model_used": "MeTTa"
     }
     
     return response
