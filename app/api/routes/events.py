@@ -92,6 +92,34 @@ def serialize_metta_result(result: Any) -> Any:
         # Return primitive types as-is
         return result
 
+@router.post("/debug-form")
+async def debug_form_data(request: Request):
+    """Debug endpoint to see what FormData is being received"""
+    try:
+        form = await request.form()
+        
+        debug_info = {
+            "content_type": request.headers.get("content-type"),
+            "form_keys": list(form.keys()),
+            "form_data": {}
+        }
+        
+        for key, value in form.items():
+            if hasattr(value, 'filename'):  # File upload
+                debug_info["form_data"][key] = f"File: {value.filename} ({value.size} bytes)"
+            else:
+                debug_info["form_data"][key] = str(value)[:100] + ("..." if len(str(value)) > 100 else "")
+        
+        return {
+            "message": "FormData debug info",
+            "debug": debug_info
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to parse form data: {str(e)}",
+            "content_type": request.headers.get("content-type")
+        }
+
 @router.post("/")
 async def create_event(
     event_type: str = Form(...),
