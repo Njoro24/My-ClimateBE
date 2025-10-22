@@ -104,22 +104,54 @@ async def create_event(
 ):
     """Create a new climate event with AI + MeTTa verification"""
     try:
+        # Validate required fields
+        if not event_type or not event_type.strip():
+            raise HTTPException(status_code=422, detail="Event type is required")
+        
+        if latitude is None or longitude is None:
+            raise HTTPException(status_code=422, detail="Latitude and longitude are required")
+        
+        if not user or not user.strip():
+            raise HTTPException(status_code=422, detail="User information is required")
+        
         event_id = str(uuid.uuid4())
         ipfs_hash, photo_path = None, None
         verification_status = "pending"
+        
+        logger.info(f"Creating event: type={event_type}, lat={latitude}, lng={longitude}, user_len={len(user)}")
 
         # Parse user (accepts JSON string or plain user ID)
         user_str = user if isinstance(user, str) else str(user)
         try:
             # Try to parse as JSON (full user object)
             user_data = json.loads(user_str)
-            # Only keep fields that exist in User dataclass
-            allowed_fields = {f.name for f in User.__dataclass_fields__.values()}
-            filtered_data = {k: v for k, v in user_data.items() if k in allowed_fields}
-            user_obj = User(**filtered_data)
-        except Exception:
+            logger.info(f"Parsed user data: {user_data}")
+            
+            # Create user object with required fields and defaults for optional ones
+            user_obj = User(
+                id=user_data.get('id', ''),
+                email=user_data.get('email', ''),
+                password_hash=user_data.get('password_hash', ''),
+                first_name=user_data.get('first_name', ''),
+                last_name=user_data.get('last_name', ''),
+                role=user_data.get('role', 'user'),
+                wallet_address=user_data.get('wallet_address'),
+                trust_score=user_data.get('trust_score', 50),
+                location_region=user_data.get('location_region'),
+                profile_image=user_data.get('profile_image'),
+                is_active=user_data.get('is_active', True),
+                is_verified=user_data.get('is_verified', False),
+                created_at=user_data.get('created_at'),
+                updated_at=user_data.get('updated_at'),
+                last_login_at=user_data.get('last_login_at')
+            )
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse user JSON: {e}, user_str: {user_str}")
             # Fallback: treat as user_id string
             user_obj = User(id=user_str, email="", password_hash="", first_name="", last_name="")
+        except Exception as e:
+            logger.error(f"Failed to create user object: {e}, user_data: {user_data if 'user_data' in locals() else 'N/A'}")
+            raise HTTPException(status_code=422, detail=f"Invalid user data: {str(e)}")
 
         # Handle photo upload
         photo_content = None

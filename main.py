@@ -1,5 +1,5 @@
 import httpx
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -429,6 +429,17 @@ async def test_cors_post(request: Request):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+@app.websocket("/ws/test")
+async def websocket_test(websocket: WebSocket):
+    """Test WebSocket endpoint"""
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await websocket.send_text(f"Echo: {data}")
+    except WebSocketDisconnect:
+        print("WebSocket disconnected")
 
 if __name__ == "__main__":
     import os

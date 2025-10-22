@@ -2,12 +2,11 @@
 Alert System API Routes
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from typing import List, Dict
 
 from app.services.alert_service import EnhancedAlertService, AlertSubscription
-from fastapi import WebSocket, WebSocketDisconnect
 
 router = APIRouter()
 alert_service = EnhancedAlertService()
@@ -79,14 +78,26 @@ async def get_alert_stats(crud = None):
 @router.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
     """WebSocket endpoint for real-time alerts"""
-    await websocket_manager.connect(websocket, user_id)
     try:
+        await websocket_manager.connect(websocket, user_id)
+        print(f"WebSocket connected for user: {user_id}")
+        
         while True:
             # Keep connection alive and listen for messages
-            data = await websocket.receive_text()
-            # Echo back for testing
-            await websocket.send_text(f"Message received: {data}")
+            try:
+                data = await websocket.receive_text()
+                print(f"Received WebSocket message from {user_id}: {data}")
+                # Echo back for testing
+                await websocket.send_text(f"Message received: {data}")
+            except Exception as e:
+                print(f"Error handling WebSocket message: {e}")
+                break
+                
     except WebSocketDisconnect:
+        print(f"WebSocket disconnected for user: {user_id}")
+        websocket_manager.disconnect(user_id)
+    except Exception as e:
+        print(f"WebSocket error for user {user_id}: {e}")
         websocket_manager.disconnect(user_id)
 
 @router.post("/subscribe")
