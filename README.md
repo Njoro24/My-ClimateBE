@@ -70,6 +70,16 @@ Current Verification Confidence: 85% ✅
 
 **Why This Matters:** Every AI decision can be traced, audited, and understood by humans.
 
+### **GPT-OSS-20B Enhanced Analysis**
+We integrate GPT-OSS-20B (open-source 20 billion parameter model) for:
+- **Natural language processing** of climate event descriptions
+- **Enhanced reasoning** that combines with MeTTa symbolic logic
+- **Contextual understanding** of complex climate scenarios
+- **Multi-language support** for global communities
+- **Advanced pattern recognition** in climate data
+
+**Neural-Symbolic AI:** GPT-OSS-20B handles natural language while MeTTa provides logical reasoning, creating a powerful hybrid system.
+
 ### **Bias Detection & Fairness**
 - **Geographic bias**: Ensures all regions get fair treatment
 - **Demographic bias**: Prevents discrimination based on user characteristics  
@@ -101,6 +111,7 @@ Current Verification Confidence: 85% ✅
 
 - **FastAPI** - Modern Python web framework
 - **MeTTa** - Symbolic reasoning and knowledge representation
+- **GPT-OSS-20B** - Open-source large language model for enhanced AI analysis
 - **PostgreSQL** - Reliable data storage
 - **Blockchain** - Immutable record keeping
 - **Satellite APIs** - Real-time environmental data
@@ -140,6 +151,8 @@ Visit `http://localhost:8000/docs` for interactive API documentation
 - `POST /api/real-time-verification/calculate-confidence` - Live confidence scoring
 - `GET /api/explainable-ai/fairness-metrics` - Bias analysis
 - `POST /api/media-integrity/verify-content` - Content verification
+- `POST /api/gpt-oss/analyze` - GPT-OSS-20B enhanced analysis
+- `POST /api/gpt-oss/neural-symbolic` - Hybrid AI reasoning
 
 ### **Community & Governance**
 - `POST /api/civic-decisions/create-proposal` - Create governance proposal
@@ -154,15 +167,23 @@ Visit `http://localhost:8000/docs` for interactive API documentation
 DATABASE_URL=postgresql://user:pass@localhost/climatedb
 BLOCKCHAIN_RPC_URL=https://your-blockchain-node
 SATELLITE_API_KEY=your-satellite-api-key
-OPENAI_API_KEY=your-openai-key  # Optional for enhanced AI
+GPT_OSS_API_URL=http://localhost:8080  # GPT-OSS-20B model endpoint
+GPT_OSS_API_KEY=your-gpt-oss-key      # Optional authentication
+OPENAI_API_KEY=your-openai-key         # Fallback for enhanced AI
 ```
 
-### **MeTTa Knowledge Base**
-The system uses MeTTa files in `/metta/` directory:
+### **AI Integration Architecture**
+
+**MeTTa Knowledge Base** - Symbolic reasoning files in `/metta/` directory:
 - `explainable_ai_enhanced.metta` - AI reasoning logic
 - `real_time_verification.metta` - Confidence calculation
 - `media_integrity_enhanced.metta` - Content verification
 - `civic_decision_enhanced.metta` - Governance logic
+
+**GPT-OSS-20B Integration** - Neural language processing:
+- `/app/services/gpt_oss_service.py` - GPT-OSS API integration
+- `/app/api/routes/gpt_oss_ai.py` - Enhanced AI endpoints
+- Hybrid neural-symbolic reasoning combining both systems
 
 ## 🤝 For Developers
 
