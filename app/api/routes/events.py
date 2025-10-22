@@ -106,9 +106,18 @@ async def debug_form_data(request: Request):
         
         for key, value in form.items():
             if hasattr(value, 'filename'):  # File upload
-                debug_info["form_data"][key] = f"File: {value.filename} ({value.size} bytes)"
+                debug_info["form_data"][key] = {
+                    "type": "file",
+                    "filename": value.filename,
+                    "size": value.size,
+                    "content_type": getattr(value, 'content_type', 'unknown')
+                }
             else:
-                debug_info["form_data"][key] = str(value)[:100] + ("..." if len(str(value)) > 100 else "")
+                debug_info["form_data"][key] = {
+                    "type": "field",
+                    "value": str(value),
+                    "length": len(str(value))
+                }
         
         return {
             "message": "FormData debug info",
