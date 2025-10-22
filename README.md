@@ -232,4 +232,4 @@ Climate Witness Chain fixes these problems with:
 
 ---
 
-**Built with ❤️ for communities fighting climate change**
+**Built  for communities fighting climate change**
