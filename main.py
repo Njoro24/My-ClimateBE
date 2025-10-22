@@ -67,7 +67,7 @@ class PaymentResponse(BaseModel):
     message: str
     checkout_request_id: str = None
 
-from app.api.routes import events, metta, users, auth, community_verification, economic_impact, dao_governance, alerts, ai_metta, plant_recommendations, contact, admin, payments, researcher, media_integrity, metta_query, explainable_ai, gpt_oss_ai, real_time_verification
+from app.api.routes import events, metta, users, auth, community_verification, economic_impact, dao_governance, alerts, ai_metta, plant_recommendations, contact, admin, payments, researcher, media_integrity, metta_query, explainable_ai, gpt_oss_ai, real_time_verification, interactive_reasoning
 from app.api.routes import civic_decision_making_simple as civic_decision_making
 
 try:
@@ -109,6 +109,7 @@ app.include_router(media_integrity.router, prefix="/api/media-integrity", tags=[
 app.include_router(civic_decision_making.router, prefix="/api/civic-decisions", tags=["civic-decision-making"])
 app.include_router(real_time_verification.router, prefix="/api/real-time-verification", tags=["real-time-verification"])
 app.include_router(gpt_oss_ai.router, prefix="/api/gpt-oss", tags=["gpt-oss-ai"])
+app.include_router(interactive_reasoning.router, prefix="/api/interactive-reasoning", tags=["interactive-reasoning"])
 
 if BLOCKCHAIN_AVAILABLE:
     app.include_router(blockchain.router, prefix="/api/blockchain", tags=["blockchain"])
